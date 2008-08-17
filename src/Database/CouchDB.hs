@@ -2,6 +2,7 @@
 module Database.CouchDB 
   ( CouchMonad
   , runCouchDB
+  , runCouchDB'
   , createDB
   , dropDB
   , newNamedDoc

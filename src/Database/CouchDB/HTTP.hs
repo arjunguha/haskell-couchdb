@@ -4,6 +4,7 @@ module Database.CouchDB.HTTP
   , CouchMonad
   , Response (..)
   , runCouchDB
+  , runCouchDB'
   ) where
 
 import Network.TCP
@@ -74,3 +75,5 @@ runCouchDB hostname port (CouchMonad m) = do
   close conn
   return a
 
+-- |Connects to the CouchDB server at localhost:5984
+runCouchDB' = runCouchDB "127.0.0.1" 5984
