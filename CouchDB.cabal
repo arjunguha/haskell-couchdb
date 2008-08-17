@@ -23,4 +23,4 @@ Library
     -fwarn-incomplete-patterns
   Extensions:     
   Exposed-Modules:
-    Database.CouchDB Database.CouchDB.JSON
+    Database.CouchDB Database.CouchDB.JSON Database.CouchDB.HTTP
