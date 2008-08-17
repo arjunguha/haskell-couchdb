@@ -3,6 +3,7 @@ module Database.CouchDB.JSON
   , jsonInt
   , jsonObject
   , jsonField
+  , jsonBool
   ) where
 
 import Text.JSON
@@ -21,6 +22,10 @@ jsonInt _ = fail "expected an integer"
 jsonObject :: JSValue -> Result [(String,JSValue)]
 jsonObject (JSObject obj) = return (fromJSObject obj)
 jsonObject v = fail $ "expected an object, got " ++ (show v)
+
+jsonBool :: JSValue -> Result Bool
+jsonBool (JSBool b) = return b
+jsonBool v = fail $ "expected a boolean value, got " ++ show v
 
 jsonField field obj = case lookup field obj of
   Just v -> return v
