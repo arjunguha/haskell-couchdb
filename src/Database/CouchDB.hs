@@ -9,6 +9,7 @@ module Database.CouchDB
   , newDoc
   , updateDoc
   , getDoc
+  , getAllDocIds
   , CouchView (..)
   , newView
   , queryView
@@ -16,7 +17,7 @@ module Database.CouchDB
 
 import Database.CouchDB.HTTP
 import Control.Monad
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust,mapMaybe)
 import Text.JSON
 
 import qualified Data.List as L
@@ -114,6 +115,26 @@ getDoc dbName docName = do
       return $ Just (id, rev, val)
     (4,0,4) -> return Nothing -- doc does not exist
     otherwise -> error (show r)
+
+allDocRow :: JSValue -> Maybe String
+allDocRow (JSObject row) = case lookup "key" (fromJSObject row) of
+  Just (JSString s) -> let key = fromJSString s
+                         in case key of
+                              '_':_ -> Nothing
+                              otherwise -> Just key
+  Nothing -> error $ "no key in a row " ++ show row
+allDocRow v = error $ "expected row to be an object, received " ++ show v
+
+getAllDocIds ::String -- ^database name
+             -> CouchMonad [String]
+getAllDocIds db = do
+  response <- request' (db ++ "/_all_docs") GET
+  case rspCode response of
+    (2,0,0) -> do
+      let result = couchResponse (rspBody response)
+      let (JSArray rows) = fromJust $ lookup "rows" result
+      return $ mapMaybe allDocRow rows
+    otherwise -> error (show response)
 
 --
 -- $views
