@@ -76,14 +76,15 @@ updateDoc db (doc,rev) val = do
   let (JSObject obj) = showJSON val
   let doc' = fromJSString doc
   let obj' = ("_id",JSString doc):("_rev",JSString rev):(fromJSObject obj)
-  r <- request (db ++ "/" ++ doc') [] PUT [] (encode obj')
+  r <- request (db ++ "/" ++ doc') [] PUT [] (encode $ toJSObject obj')
   case rspCode r of
     (2,0,1) ->  do
       let result = couchResponse (rspBody r)
       let (JSString rev) = fromJust $ lookup "rev" result
       return $ Just (doc,rev)
     (4,0,9) ->  return Nothing
-    otherwise -> error (show r)
+    otherwise -> 
+      error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
 
 newDoc :: (JSON a)
        => String -- ^database name
