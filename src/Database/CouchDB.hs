@@ -13,10 +13,12 @@ module Database.CouchDB
   , CouchView (..)
   , newView
   , queryView
+  , queryViewKeys
   ) where
 
 import Database.CouchDB.HTTP
 import Control.Monad
+import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust,mapMaybe)
 import Text.JSON
 
@@ -198,3 +200,30 @@ queryView db viewSet view args = do
       let (JSArray rows) = fromJust $ lookup "rows" result
       return $ map toRow rows
     otherwise -> error (show r)
+
+-- |Like 'queryView', but only returns the keys.  Use this for key-only
+-- views where the value is completely ignored.
+queryViewKeys :: String  -- ^database
+            -> String  -- ^design
+            -> String  -- ^view
+            -> [(String, JSValue)] -- ^query parameters
+            -> CouchMonad [String]
+queryViewKeys db viewSet view args = do
+  let args' = map (\(k,v) -> (k,encode v)) args
+  let url' = concat [db,"/_view/",viewSet,"/",view]
+  r <- request url' args' GET [] ""
+  case rspCode r of
+    (2,0,0) -> do
+      let result = couchResponse (rspBody r)
+      case lookup "rows" result of
+        Just (JSArray rows) -> liftIO $ mapM rowKey rows
+        otherwise -> fail $ "queryView: expected rows"
+    otherwise -> error (show r)
+
+rowKey :: JSValue -> IO String
+rowKey (JSObject obj) = do
+  let assoc = fromJSObject obj
+  case lookup "id" assoc of
+    Just (JSString s) -> return (fromJSString s)
+    v -> fail "expected id"
+rowKey v = fail "expected id"
