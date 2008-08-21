@@ -1,3 +1,7 @@
+-- |Maintains a persistent HTTP connection to a CouchDB database server.
+-- CouchDB enjoys closing the connection if there is an error (document
+-- not found, etc.)  In such cases, 'CouchMonad' will automatically
+-- reestablish the connection.
 module Database.CouchDB.HTTP 
   ( request
   , RequestMethod (..)
@@ -7,6 +11,7 @@ module Database.CouchDB.HTTP
   , runCouchDB'
   ) where
 
+import System.Log.Logger (errorM)
 import Network.TCP
 import Network.Stream
 import Network.HTTP
@@ -16,6 +21,8 @@ import Control.Monad.Trans (MonadIO (..))
 data CouchConn = CouchConn 
   { ccConn :: Connection
   , ccURI :: URI
+  , ccHostname :: String
+  , ccPort :: Int
   }
 
 data CouchMonad a = CouchMonad (CouchConn -> IO (a,CouchConn))
@@ -45,8 +52,15 @@ makeURL path query = CouchMonad $ \conn -> do
 getConn :: CouchMonad Connection
 getConn = CouchMonad $ \conn -> return (ccConn conn,conn)
 
+reopenConnection :: CouchMonad ()
+reopenConnection = CouchMonad $ \conn -> do
+  liftIO $ close (ccConn conn) -- prevent memory leak
+  connection <- liftIO $ openTCPPort (ccHostname conn) (ccPort conn)
+  return ((), conn {ccConn = connection})
+
 makeHeaders bodyLen =
   [ Header HdrContentType "application/json"
+  , Header HdrConnection "keep-alive"
   , Header HdrContentLength (show bodyLen)
   ]
 
@@ -59,11 +73,16 @@ request :: String
 request path query method headers body = do
   url <- makeURL path query
   let allHeaders = (makeHeaders (length body)) ++ headers 
-  let request = Request url method allHeaders body
   conn <- getConn
-  response <- liftIO $ sendHTTP conn request
+  response <- liftIO $ sendHTTP conn (Request url method allHeaders body)
   case response of
-    Left connErr -> error (show connErr)
+    Left ErrorClosed -> do
+      liftIO $ errorM "couchdb.http" "connection closed; reopening"
+      reopenConnection
+      request path query method headers body
+    Left connErr -> do
+      liftIO $ errorM "coucdb.http" ("send failed: " ++ show connErr)
+      fail (show connErr)
     Right response -> return response
 
 runCouchDB :: String -> Int -> CouchMonad a -> IO a
@@ -71,7 +90,7 @@ runCouchDB hostname port (CouchMonad m) = do
   let uriAuth = URIAuth "" hostname (show port)
   let baseURI = URI "http:" (Just uriAuth) "" "" ""
   conn <- openTCPPort hostname port
-  (a,_) <- m (CouchConn conn baseURI)
+  (a,_) <- m (CouchConn conn baseURI hostname port)
   close conn
   return a
 

@@ -16,6 +16,7 @@ module Database.CouchDB
   , queryViewKeys
   ) where
 
+import System.Log.Logger (errorM)
 import Database.CouchDB.HTTP
 import Control.Monad
 import Control.Monad.Trans (liftIO)
@@ -114,8 +115,9 @@ getDoc dbName docName = do
       let result = couchResponse (rspBody r)
       let (JSString rev) = fromJust $ lookup "_rev" result
       let (JSString id) = fromJust $ lookup "_id" result
-      let (Ok val) = readJSON (JSObject $ toJSObject result)
-      return $ Just (id, rev, val)
+      case readJSON (JSObject $ toJSObject result) of
+        Ok val -> return $ Just (id, rev, val)
+        val -> fail $ "error parsing: " ++ encode (toJSObject result)
     (4,0,4) -> return Nothing -- doc does not exist
     otherwise -> error (show r)
 
