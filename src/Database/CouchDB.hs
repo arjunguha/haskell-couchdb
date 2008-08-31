@@ -8,6 +8,7 @@ module Database.CouchDB
   , newNamedDoc
   , newDoc
   , updateDoc
+  , deleteDoc
   , getDoc
   , getAllDocIds
   , CouchView (..)
@@ -88,6 +89,18 @@ updateDoc db (doc,rev) val = do
     (4,0,9) ->  return Nothing
     otherwise -> 
       error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
+
+deleteDoc :: String  -- ^database
+          -> (JSString,JSString) -- ^document and revision
+          -> CouchMonad Bool
+deleteDoc db (doc,rev) = do 
+  r <- request (db ++ "/" ++ (fromJSString doc)) [("rev",fromJSString rev)]
+         DELETE [] ""
+  case rspCode r of
+    (2,0,0) -> return True
+    -- TODO: figure out which error codes are normal (delete conflicts)
+    otherwise -> fail $ "deleteDoc failed: " ++ (show r)
+      
 
 newDoc :: (JSON a)
        => String -- ^database name
