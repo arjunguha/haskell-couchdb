@@ -140,6 +140,7 @@ allDocRow (JSObject row) = case lookup "key" (fromJSObject row) of
                          in case key of
                               '_':_ -> Nothing
                               otherwise -> Just key
+  Just _ -> error $ "key not a string in row " ++ show row
   Nothing -> error $ "no key in a row " ++ show row
 allDocRow v = error $ "expected row to be an object, received " ++ show v
 
@@ -197,6 +198,8 @@ toRow (JSObject objVal) = (key,value) where
        Ok v' -> v'
        Error s -> error s
      Nothing -> error $ "toRow: row does not have a value in " ++ show obj
+toRow val =
+  error $ "toRow: expected row to be an object, received " ++ show val
 
 queryView :: (JSON a)
           => String  -- ^database

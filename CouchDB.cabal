@@ -6,11 +6,12 @@ License:        BSD3
 License-file:   LICENSE
 Author:         Arjun Guha, Brendan Hickey
 Maintainer:     Arjun Guha <arjun@cs.brown.edu>
-Homepage:       http://www.cs.brown.edu/research/plt/
+Homepage:       http://www.cs.brown.edu/~arjun/
 Stability:      provisional
 Category:       Database
 Build-Type:     Custom
 Synopsis:       CouchDB interface
+Extra-Source-Files: README
 Description:
 
  
