@@ -10,6 +10,7 @@ module Database.CouchDB
   , updateDoc
   , deleteDoc
   , getDoc
+  , getAndUpdateDoc
   , getAllDocIds
   , CouchView (..)
   , newView
@@ -70,6 +71,7 @@ newNamedDoc dbName docName body = do
             fromJust $ lookup "reason" (fromJSObject errorObj)
       return $ Left (fromJSString reason)
     otherwise -> error (show r)
+
 
 updateDoc :: (JSON a)
           => String -- ^database
@@ -133,6 +135,22 @@ getDoc dbName docName = do
         val -> fail $ "error parsing: " ++ encode (toJSObject result)
     (4,0,4) -> return Nothing -- doc does not exist
     otherwise -> error (show r)
+
+getAndUpdateDoc :: (JSON a)
+                => String -- ^database
+                -> String -- ^document name
+                -> (a -> a) -- ^update function
+                -> CouchMonad (Maybe String) -- ^revision number
+getAndUpdateDoc db docId fn = do
+  r <- getDoc db docId
+  case r of
+    Just (id,rev,val) -> do
+      r <- updateDoc db (id,rev) (fn val)
+      case r of
+        Just (id,rev) -> return (Just $ fromJSString rev)
+        Nothing -> return Nothing
+    Nothing -> return Nothing
+
 
 allDocRow :: JSValue -> Maybe String
 allDocRow (JSObject row) = case lookup "key" (fromJSObject row) of
