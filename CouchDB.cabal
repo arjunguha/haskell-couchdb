@@ -6,7 +6,7 @@ License:        BSD3
 License-file:   LICENSE
 Author:         Arjun Guha, Brendan Hickey
 Maintainer:     Arjun Guha <arjun@cs.brown.edu>
-Homepage:       http://www.cs.brown.edu/~arjun/
+Homepage:       http://github.com/arjunguha/haskell-couchdb/
 Stability:      provisional
 Category:       Database
 Build-Type:     Custom
