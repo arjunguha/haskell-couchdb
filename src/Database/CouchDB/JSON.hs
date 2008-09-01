@@ -27,7 +27,8 @@ jsonBool :: JSValue -> Result Bool
 jsonBool (JSBool b) = return b
 jsonBool v = fail $ "expected a boolean value, got " ++ show v
 
+jsonField :: JSON a => String -> [(String,JSValue)] -> Result a
 jsonField field obj = case lookup field obj of
-  Just v -> return v
+  Just v -> readJSON v
   Nothing -> fail $ "could not find the field " ++ field
 
