@@ -1,3 +1,5 @@
+-- |Convenient functions for parsing JSON responses.  Use these
+-- functions to write the 'readJSON' method of the 'JSON' class.
 module Database.CouchDB.JSON
   ( jsonString
   , jsonInt
@@ -27,6 +29,8 @@ jsonBool :: JSValue -> Result Bool
 jsonBool (JSBool b) = return b
 jsonBool v = fail $ "expected a boolean value, got " ++ show v
 
+-- |Extract a field as a value of type 'a'.  If the field does not
+-- exist or cannot be parsed as type 'a', fail.
 jsonField :: JSON a => String -> [(String,JSValue)] -> Result a
 jsonField field obj = case lookup field obj of
   Just v -> readJSON v

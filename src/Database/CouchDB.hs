@@ -1,10 +1,13 @@
--- |CouchDB bindings.
+-- |Interface to CouchDB.
 module Database.CouchDB 
-  ( CouchMonad
+  ( -- * Initialization
+    CouchMonad
   , runCouchDB
   , runCouchDB'
+  -- * Databases
   , createDB
   , dropDB
+  -- * Documents
   , newNamedDoc
   , newDoc
   , updateDoc
@@ -12,6 +15,8 @@ module Database.CouchDB
   , getDoc
   , getAndUpdateDoc
   , getAllDocIds
+  -- * Views
+  -- $views
   , CouchView (..)
   , newView
   , queryView
@@ -54,8 +59,9 @@ newNamedDoc :: (JSON a)
             => String -- ^database name
             -> String -- ^document name
             -> a -- ^document body
-            -- |'Left' is a conflict, 'Right' is success
             -> CouchMonad (Either String String)
+            -- ^Returns 'Left' on a conflict.  Returns 'Right' with the
+            -- revision number on success.
 newNamedDoc dbName docName body = do
   r <- request (dbName ++ "/" ++ docName) [] PUT [] 
                (encode $ showJSON body)
@@ -121,8 +127,8 @@ newDoc db doc = do
 getDoc :: (JSON a)
        => String -- ^database name
        -> String -- ^document name
-       -- |'Nothing' if the doc does not exist
-       -> CouchMonad (Maybe (JSString,JSString,a))
+       -> CouchMonad (Maybe (JSString,JSString,a)) -- ^'Nothing' if the 
+                                                   -- doc does not exist
 getDoc dbName docName = do
   r <- request' (dbName ++ "/" ++ docName) GET
   case rspCode r of
@@ -140,7 +146,9 @@ getAndUpdateDoc :: (JSON a)
                 => String -- ^database
                 -> String -- ^document name
                 -> (a -> a) -- ^update function
-                -> CouchMonad (Maybe String) -- ^revision number
+                -> CouchMonad (Maybe String) -- ^If the update succeeds,
+                                             -- return the revision number
+                                             -- of the result.
 getAndUpdateDoc db docId fn = do
   r <- getDoc db docId
   case r of

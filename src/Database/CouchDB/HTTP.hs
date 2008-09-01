@@ -18,13 +18,19 @@ import Network.HTTP
 import Network.URI
 import Control.Monad.Trans (MonadIO (..))
 
+-- |Describes a connection to a CouchDB database.  This type is
+-- encapsulated by 'CouchMonad'.
 data CouchConn = CouchConn 
-  { ccConn :: Connection
+  { ccConn :: Connection 
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
   }
 
+-- |A computation that interacts with a CouchDB database.  This monad
+-- encapsulates the 'IO' monad, a persistent HTTP connnection  to a
+-- CouchDB database and enough information to re-open the connection
+-- if it is closed.
 data CouchMonad a = CouchMonad (CouchConn -> IO (a,CouchConn))
 
 instance Monad CouchMonad where
@@ -64,11 +70,14 @@ makeHeaders bodyLen =
   , Header HdrContentLength (show bodyLen)
   ]
 
-request :: String 
-       -> [(String,String)]
+-- |Send a request to the database.  If the connection is closed, it is
+-- reopened and the request is resent.  On other errors, we raise an
+-- exception.
+request :: String -- ^path of the request
+       -> [(String,String)] -- ^dictionary of GET parameters
        -> RequestMethod 
        -> [Header] 
-       -> String 
+       -> String -- ^body of the request
        -> CouchMonad Response
 request path query method headers body = do
   url <- makeURL path query
@@ -86,7 +95,10 @@ request path query method headers body = do
       fail (show connErr)
     Right response -> return response
 
-runCouchDB :: String -> Int -> CouchMonad a -> IO a
+runCouchDB :: String -- ^hostname
+           -> Int -- ^port
+           -> CouchMonad a 
+           -> IO a
 runCouchDB hostname port (CouchMonad m) = do
   let uriAuth = URIAuth "" hostname (':':(show port))
   let baseURI = URI "http:" (Just uriAuth) "" "" ""
@@ -95,5 +107,6 @@ runCouchDB hostname port (CouchMonad m) = do
   close conn
   return a
 
--- |Connects to the CouchDB server at localhost:5984
+-- |Connects to the CouchDB server at localhost:5984.
+runCouchDB' :: CouchMonad a -> IO a
 runCouchDB' = runCouchDB "127.0.0.1" 5984
