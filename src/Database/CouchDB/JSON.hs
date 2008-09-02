@@ -6,6 +6,7 @@ module Database.CouchDB.JSON
   , jsonObject
   , jsonField
   , jsonBool
+  , jsonIsTrue
   ) where
 
 import Text.JSON
@@ -36,3 +37,8 @@ jsonField field obj = case lookup field obj of
   Just v -> readJSON v
   Nothing -> fail $ "could not find the field " ++ field
 
+-- |'True' when the field is defined and is true.  Otherwise, 'False'.
+jsonIsTrue :: String -> [(String,JSValue)] -> Result Bool
+jsonIsTrue field obj = case lookup field obj of
+  Just (JSBool True) -> return True
+  otherwise -> return False
