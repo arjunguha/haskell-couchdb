@@ -42,6 +42,10 @@ instance Monad CouchMonad where
     let (CouchMonad m') = k a
     m' conn'
 
+  fail msg = CouchMonad $ \conn -> do
+    errorM "couchdb" msg
+    fail "internal error"   
+
 instance MonadIO CouchMonad where
 
   liftIO m = CouchMonad $ \conn -> m >>= \a -> return (a,conn)
