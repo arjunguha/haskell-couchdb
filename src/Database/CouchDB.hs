@@ -12,6 +12,8 @@ module Database.CouchDB
   , newDoc
   , updateDoc
   , deleteDoc
+  , forceDeleteDoc
+  , getDocPrim
   , getDoc
   , getAndUpdateDoc
   , getAllDocIds
@@ -98,6 +100,19 @@ updateDoc db (doc,rev) val = do
     otherwise -> 
       error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
 
+
+-- |Delete a doc by document identifier (revision number not needed).  This
+-- operation first retreives the document to get its revision number.  It fails
+-- if the document doesn't exist or there is a conflict.
+forceDeleteDoc :: String -- ^ database
+               -> String -- ^ document identifier
+               -> CouchMonad Bool
+forceDeleteDoc db doc = do
+  r <- getDocPrim db doc
+  case r of
+    Just (id,rev,_) -> deleteDoc db (id,rev)
+    Nothing -> return False
+
 deleteDoc :: String  -- ^database
           -> (JSString,JSString) -- ^document and revision
           -> CouchMonad Bool
@@ -141,6 +156,24 @@ getDoc dbName docName = do
         val -> fail $ "error parsing: " ++ encode (toJSObject result)
     (4,0,4) -> return Nothing -- doc does not exist
     otherwise -> error (show r)
+
+-- |Gets a document as a raw JSON value.  Returns the document id,
+-- revision and value as a 'JSObject'.  These fields are queried lazily,
+-- and may fail later if the response from the server is malformed.
+getDocPrim :: String -- ^database name
+           -> String -- ^document name
+           -> CouchMonad (Maybe (JSString,JSString,[(String,JSValue)]))
+           -- ^'Nothing' if the document does not exist.
+getDocPrim db doc = do
+  r <- request' (db ++ "/" ++ doc) GET
+  case rspCode r of
+    (2,0,0) -> do
+      let obj = couchResponse (rspBody r)
+      let ~(JSString rev) = fromJust $ lookup "_rev" obj
+      let ~(JSString id) = fromJust $ lookup "_id" obj
+      return $ Just (id,rev,obj)
+    (4,0,4) -> return Nothing -- doc does not exist
+    code -> fail $ "getDocPrim: " ++ show code ++ " error"
 
 getAndUpdateDoc :: (JSON a)
                 => String -- ^database
