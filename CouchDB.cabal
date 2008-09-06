@@ -1,5 +1,5 @@
 Name:           CouchDB
-Version:        0.8.0.1
+Version:        0.8.0.2
 Cabal-Version:	>= 1.2.4
 Copyright:      Copyright (c) 2008 Arjun Guha and Brendan Hickey
 License:        BSD3
