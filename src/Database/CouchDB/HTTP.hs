@@ -90,13 +90,9 @@ request path query method headers body = do
   liftIO $ debugM "couchdb.http" $ concat [show url," ", show method]
   response <- liftIO $ sendHTTP conn (Request url method allHeaders body)
   case response of
-    Left ErrorClosed -> do
-      liftIO $ errorM "couchdb.http" "connection closed; reopening"
-      reopenConnection
-      request path query method headers body
     Left connErr -> do
-      liftIO $ errorM "couchdb.http" ("send failed: " ++ show connErr)
-      fail (show connErr)
+      liftIO $ errorM "couchdb.http" ("request failed: " ++ show connErr)
+      fail "server error"
     Right response -> return response
 
 runCouchDB :: String -- ^hostname
