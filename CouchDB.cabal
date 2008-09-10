@@ -1,5 +1,5 @@
 Name:           CouchDB
-Version:        0.8.0.2
+Version:        0.8.0.3
 Cabal-Version:	>= 1.2.4
 Copyright:      Copyright (c) 2008 Arjun Guha and Brendan Hickey
 License:        BSD3
@@ -25,4 +25,6 @@ Library
     -fwarn-incomplete-patterns
   Extensions:     
   Exposed-Modules:
-    Database.CouchDB Database.CouchDB.JSON Database.CouchDB.HTTP
+    Database.CouchDB Database.CouchDB.JSON Database.CouchDB.Safety
+  Other-Modules:
+    Database.CouchDB.HTTP

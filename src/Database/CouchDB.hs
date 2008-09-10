@@ -27,6 +27,7 @@ module Database.CouchDB
 
 import System.Log.Logger (errorM)
 import Database.CouchDB.HTTP
+import Database.CouchDB.Safety
 import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust,mapMaybe)
@@ -57,14 +58,14 @@ dropDB name = do
     (4,0,4) -> return False
     otherwise -> error (rspReason resp)
 
-newNamedDoc :: (JSON a)
+unsafeNewNamedDoc :: (JSON a)
             => String -- ^database name
             -> String -- ^document name
             -> a -- ^document body
             -> CouchMonad (Either String String)
             -- ^Returns 'Left' on a conflict.  Returns 'Right' with the
             -- revision number on success.
-newNamedDoc dbName docName body = do
+unsafeNewNamedDoc dbName docName body = do
   r <- request (dbName ++ "/" ++ docName) [] PUT [] 
                (encode $ showJSON body)
   case rspCode r of
@@ -81,8 +82,18 @@ newNamedDoc dbName docName body = do
     otherwise -> error (show r)
 
 
+newNamedDoc :: (JSON a)
+            => DB -- ^database name
+            -> Doc -- ^document name
+            -> a -- ^document body
+            -> CouchMonad (Either String String)
+            -- ^Returns 'Left' on a conflict.  Returns 'Right' with the
+            -- revision number on success.
+newNamedDoc dbName docName body = 
+  unsafeNewNamedDoc (show dbName) (show docName) body
+
 updateDoc :: (JSON a)
-          => String -- ^database
+          => DB -- ^database
           -> (JSString,JSString) -- ^document and revision
           -> a -- ^ new value
           -> CouchMonad (Maybe (JSString,JSString)) 
@@ -90,7 +101,7 @@ updateDoc db (doc,rev) val = do
   let (JSObject obj) = showJSON val
   let doc' = fromJSString doc
   let obj' = ("_id",JSString doc):("_rev",JSString rev):(fromJSObject obj)
-  r <- request (db ++ "/" ++ doc') [] PUT [] (encode $ toJSObject obj')
+  r <- request (show db ++ "/" ++ doc') [] PUT [] (encode $ toJSObject obj')
   case rspCode r of
     (2,0,1) ->  do
       let result = couchResponse (rspBody r)
@@ -104,8 +115,8 @@ updateDoc db (doc,rev) val = do
 -- |Delete a doc by document identifier (revision number not needed).  This
 -- operation first retreives the document to get its revision number.  It fails
 -- if the document doesn't exist or there is a conflict.
-forceDeleteDoc :: String -- ^ database
-               -> String -- ^ document identifier
+forceDeleteDoc :: DB -- ^ database
+               -> Doc -- ^ document identifier
                -> CouchMonad Bool
 forceDeleteDoc db doc = do
   r <- getDocPrim db doc
@@ -113,11 +124,12 @@ forceDeleteDoc db doc = do
     Just (id,rev,_) -> deleteDoc db (id,rev)
     Nothing -> return False
 
-deleteDoc :: String  -- ^database
+deleteDoc :: DB  -- ^database
           -> (JSString,JSString) -- ^document and revision
           -> CouchMonad Bool
 deleteDoc db (doc,rev) = do 
-  r <- request (db ++ "/" ++ (fromJSString doc)) [("rev",fromJSString rev)]
+  r <- request (show db ++ "/" ++ (fromJSString doc)) 
+               [("rev",fromJSString rev)]
          DELETE [] ""
   case rspCode r of
     (2,0,0) -> return True
@@ -126,11 +138,11 @@ deleteDoc db (doc,rev) = do
       
 
 newDoc :: (JSON a)
-       => String -- ^database name
+       => DB -- ^database name
       -> a       -- ^document body
       -> CouchMonad (JSString,JSString) -- ^ id and rev of new document
 newDoc db doc = do
-  r <- request db [] POST [] (encode $ showJSON doc)
+  r <- request (show db) [] POST [] (encode $ showJSON doc)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)
@@ -140,32 +152,27 @@ newDoc db doc = do
     otherwise -> error (show r)
     
 getDoc :: (JSON a)
-       => String -- ^database name
-       -> String -- ^document name
+       => DB -- ^database name
+       -> Doc -- ^document name
        -> CouchMonad (Maybe (JSString,JSString,a)) -- ^'Nothing' if the 
                                                    -- doc does not exist
-getDoc dbName docName = do
-  r <- request' (dbName ++ "/" ++ docName) GET
-  case rspCode r of
-    (2,0,0) -> do
-      let result = couchResponse (rspBody r)
-      let (JSString rev) = fromJust $ lookup "_rev" result
-      let (JSString id) = fromJust $ lookup "_id" result
-      case readJSON (JSObject $ toJSObject result) of
-        Ok val -> return $ Just (id, rev, val)
-        val -> fail $ "error parsing: " ++ encode (toJSObject result)
-    (4,0,4) -> return Nothing -- doc does not exist
-    otherwise -> error (show r)
+getDoc db doc = do
+  r <- getDocPrim db doc
+  case r of
+    Nothing -> return Nothing
+    Just (id,rev,val) -> case readJSON (JSObject $ toJSObject val) of
+      Ok a -> return $ Just (id,rev,a)
+      otherwise -> fail $ "error parsing: " ++ encode val
 
 -- |Gets a document as a raw JSON value.  Returns the document id,
 -- revision and value as a 'JSObject'.  These fields are queried lazily,
 -- and may fail later if the response from the server is malformed.
-getDocPrim :: String -- ^database name
-           -> String -- ^document name
+getDocPrim :: DB -- ^database name
+           -> Doc -- ^document name
            -> CouchMonad (Maybe (JSString,JSString,[(String,JSValue)]))
            -- ^'Nothing' if the document does not exist.
 getDocPrim db doc = do
-  r <- request' (db ++ "/" ++ doc) GET
+  r <- request' (show db ++ "/" ++ show doc) GET
   case rspCode r of
     (2,0,0) -> do
       let obj = couchResponse (rspBody r)
@@ -176,8 +183,8 @@ getDocPrim db doc = do
     code -> fail $ "getDocPrim: " ++ show code ++ " error"
 
 getAndUpdateDoc :: (JSON a)
-                => String -- ^database
-                -> String -- ^document name
+                => DB -- ^database
+                -> Doc -- ^document name
                 -> (a -> a) -- ^update function
                 -> CouchMonad (Maybe String) -- ^If the update succeeds,
                                              -- return the revision number
@@ -203,10 +210,10 @@ allDocRow (JSObject row) = case lookup "key" (fromJSObject row) of
   Nothing -> error $ "no key in a row " ++ show row
 allDocRow v = error $ "expected row to be an object, received " ++ show v
 
-getAllDocIds ::String -- ^database name
+getAllDocIds ::DB -- ^database name
              -> CouchMonad [String]
 getAllDocIds db = do
-  response <- request' (db ++ "/_all_docs") GET
+  response <- request' (show db ++ "/_all_docs") GET
   case rspCode response of
     (2,0,0) -> do
       let result = couchResponse (rspBody response)
@@ -238,7 +245,7 @@ newView dbName viewName views = do
   let body = toJSObject 
         [("language", JSString $ toJSString "javascript"),
          ("views", JSObject $ toJSObject (map couchViewToJSON views))]
-  result <- newNamedDoc dbName ("_design/" ++ viewName) 
+  result <- unsafeNewNamedDoc dbName ("_design/" ++ viewName) 
              (JSObject body)
   case result of
     Right _ -> return ()
@@ -261,15 +268,15 @@ toRow val =
   error $ "toRow: expected row to be an object, received " ++ show val
 
 queryView :: (JSON a)
-          => String  -- ^database
-          -> String  -- ^design
-          -> String  -- ^view
+          => DB  -- ^database
+          -> Doc  -- ^design
+          -> Doc  -- ^view
           -> [(String, JSValue)] -- ^query parameters
           -- |Returns a list of rows.  Each row is a key, value pair.
           -> CouchMonad [(JSString, a)]
 queryView db viewSet view args = do
   let args' = map (\(k,v) -> (k,encode v)) args
-  let url' = concat [db,"/_view/",viewSet,"/",view]
+  let url' = concat [show db,"/_view/",show viewSet,"/",show view]
   r <- request url' args' GET [] ""
   case rspCode r of
     (2,0,0) -> do
@@ -280,14 +287,14 @@ queryView db viewSet view args = do
 
 -- |Like 'queryView', but only returns the keys.  Use this for key-only
 -- views where the value is completely ignored.
-queryViewKeys :: String  -- ^database
-            -> String  -- ^design
-            -> String  -- ^view
+queryViewKeys :: DB  -- ^database
+            -> Doc  -- ^design
+            -> Doc  -- ^view
             -> [(String, JSValue)] -- ^query parameters
             -> CouchMonad [String]
 queryViewKeys db viewSet view args = do
   let args' = map (\(k,v) -> (k,encode v)) args
-  let url' = concat [db,"/_view/",viewSet,"/",view]
+  let url' = concat [show db,"/_view/",show viewSet,"/",show view]
   r <- request url' args' GET [] ""
   case rspCode r of
     (2,0,0) -> do
