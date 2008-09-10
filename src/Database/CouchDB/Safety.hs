@@ -1,6 +1,6 @@
 -- |Helps prevent injection attacks.  At the time of writing, there
 -- is no official specification of the naming conventions.  So, this is
--- overly 
+-- overly conservative.
 module Database.CouchDB.Safety 
   ( DB
   , db
@@ -24,7 +24,7 @@ isDBChar ch = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
 isFirstDocChar = isDBChar
 
 isDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
-  || (ch >= '0' && ch <= '9') || ch `elem` "@."
+  || (ch >= '0' && ch <= '9') || ch `elem` "@._"
 
 isDBString :: String -> Bool
 isDBString [] =  False
@@ -37,13 +37,14 @@ db dbName =  case isDBString dbName of
   True -> DB dbName
   False -> error $ "db :  invalid dbName (" ++ dbName ++ ")"
 
-
 -- |Document name
 data Doc = Doc String
 
 instance Show Doc where
   show (Doc s) = s
 
+-- |Returns a safe document name.  Signals an error if the name is
+-- invalid.
 doc :: String -> Doc
 doc docName = case isDocString docName of
   True -> Doc docName
