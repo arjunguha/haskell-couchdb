@@ -105,7 +105,6 @@ request path query method headers body = do
             liftIO $ infoM "couchdb.http" $ "request failed; " ++ show n ++
               " more tries left.  Error code:  " ++ show err ++ ", request: " ++
               show req
-            liftIO $ threadDelay 5000000
             reopenConnection
             retry (n-1)
           Right val -> return val
