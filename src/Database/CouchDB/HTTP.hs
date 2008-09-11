@@ -11,7 +11,7 @@ module Database.CouchDB.HTTP
   , runCouchDB'
   ) where
 
-import System.Log.Logger (errorM,debugM)
+import System.Log.Logger (errorM,debugM,infoM)
 import Network.TCP
 import Network.Stream
 import Network.HTTP
@@ -87,13 +87,20 @@ request path query method headers body = do
   url <- makeURL path query
   let allHeaders = (makeHeaders (length body)) ++ headers 
   conn <- getConn
-  liftIO $ debugM "couchdb.http" $ concat [show url," ", show method]
-  response <- liftIO $ sendHTTP conn (Request url method allHeaders body)
-  case response of
-    Left connErr -> do
-      liftIO $ errorM "couchdb.http" ("request failed: " ++ show connErr)
-      fail "server error"
-    Right response -> return response
+  let req = Request url method allHeaders body
+  let retry 0 = do
+        liftIO $ errorM "couchdb.http" $ "request failed: " ++ show req
+        fail "server error"
+      retry n = do
+        response <- liftIO $ sendHTTP conn req
+        case response of
+          Left err -> do
+            liftIO $ infoM "couchdb.http" $ "request failed; " ++ show n ++
+              " more tries left: " ++ show req
+            retry (n-1)
+          Right val -> return val
+  retry 2
+
 
 runCouchDB :: String -- ^hostname
            -> Int -- ^port
