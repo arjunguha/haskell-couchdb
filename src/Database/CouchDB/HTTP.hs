@@ -11,17 +11,20 @@ module Database.CouchDB.HTTP
   , runCouchDB'
   ) where
 
-import System.Log.Logger (errorM,debugM)
+import Data.IORef
+import Control.Concurrent
+import System.Log.Logger (errorM,debugM,infoM)
 import Network.TCP
 import Network.Stream
 import Network.HTTP
 import Network.URI
+import Control.Exception (finally)
 import Control.Monad.Trans (MonadIO (..))
 
 -- |Describes a connection to a CouchDB database.  This type is
 -- encapsulated by 'CouchMonad'.
 data CouchConn = CouchConn 
-  { ccConn :: Connection 
+  { ccConn :: IORef Connection 
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
@@ -60,13 +63,16 @@ makeURL path query = CouchMonad $ \conn -> do
          ,conn )
 
 getConn :: CouchMonad Connection
-getConn = CouchMonad $ \conn -> return (ccConn conn,conn)
+getConn = CouchMonad $ \conn -> do
+  r <- readIORef (ccConn conn)
+  return (r,conn)
 
 reopenConnection :: CouchMonad ()
 reopenConnection = CouchMonad $ \conn -> do
-  liftIO $ close (ccConn conn) -- prevent memory leak
+  c <- liftIO $ readIORef (ccConn conn) >>= close
   connection <- liftIO $ openTCPPort (ccHostname conn) (ccPort conn)
-  return ((), conn {ccConn = connection})
+  writeIORef (ccConn conn) connection
+  return ((), conn)
 
 makeHeaders bodyLen =
   [ Header HdrContentType "application/json"
@@ -87,13 +93,23 @@ request path query method headers body = do
   url <- makeURL path query
   let allHeaders = (makeHeaders (length body)) ++ headers 
   conn <- getConn
-  liftIO $ debugM "couchdb.http" $ concat [show url," ", show method]
-  response <- liftIO $ sendHTTP conn (Request url method allHeaders body)
-  case response of
-    Left connErr -> do
-      liftIO $ errorM "couchdb.http" ("request failed: " ++ show connErr)
-      fail "server error"
-    Right response -> return response
+  let req = Request url method allHeaders body
+  liftIO $ debugM "couchdb.http" $ "Starting " ++ show req
+  let retry 0 = do
+        liftIO $ errorM "couchdb.http" $ "request failed: " ++ show req
+        fail "server error"
+      retry n = do
+        response <- liftIO $ sendHTTP conn req
+        case response of
+          Left err -> do
+            liftIO $ infoM "couchdb.http" $ "request failed; " ++ show n ++
+              " more tries left.  Error code:  " ++ show err ++ ", request: " ++
+              show req
+            reopenConnection
+            retry (n-1)
+          Right val -> return val
+  retry 2
+
 
 runCouchDB :: String -- ^hostname
            -> Int -- ^port
@@ -102,9 +118,11 @@ runCouchDB :: String -- ^hostname
 runCouchDB hostname port (CouchMonad m) = do
   let uriAuth = URIAuth "" hostname (':':(show port))
   let baseURI = URI "http:" (Just uriAuth) "" "" ""
-  conn <- openTCPPort hostname port
+  c <- openTCPPort hostname port
+  conn <- newIORef c
   (a,_) <- m (CouchConn conn baseURI hostname port)
-  close conn
+           `finally` (do c <- readIORef conn
+                         close c)
   return a
 
 -- |Connects to the CouchDB server at localhost:5984.
