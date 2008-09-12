@@ -12,6 +12,7 @@ module Database.CouchDB
   , dropDB
   -- * Documents
   , Doc
+  , Rev
   , doc
   , isDocString
   , newNamedDoc
@@ -199,8 +200,10 @@ getAndUpdateDoc db docId fn = do
     Just rev -> return $ Just (Rev $ toJSString rev)
 
 getAllDocIds ::DB -- ^database name
-             -> CouchMonad [String]
-getAllDocIds db = U.getAllDocIds (show db)
+             -> CouchMonad [Doc]
+getAllDocIds db = do
+  allIds <- U.getAllDocIds (show db)
+  return (map Doc allIds)
 
 --
 -- $views

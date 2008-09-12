@@ -191,18 +191,18 @@ getAndUpdateDoc db docId fn = do
     Nothing -> return Nothing
 
 
-allDocRow :: JSValue -> Maybe String
+allDocRow :: JSValue -> Maybe JSString
 allDocRow (JSObject row) = case lookup "key" (fromJSObject row) of
   Just (JSString s) -> let key = fromJSString s
                          in case key of
                               '_':_ -> Nothing
-                              otherwise -> Just key
+                              otherwise -> Just s
   Just _ -> error $ "key not a string in row " ++ show row
   Nothing -> error $ "no key in a row " ++ show row
 allDocRow v = error $ "expected row to be an object, received " ++ show v
 
 getAllDocIds ::String -- ^database name
-             -> CouchMonad [String]
+             -> CouchMonad [JSString]
 getAllDocIds db = do
   response <- request' (db ++ "/_all_docs") GET
   case rspCode response of
