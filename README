@@ -1,19 +1,4 @@
-CouchDB 0.8.0
+CouchDB 0.8.1
 -------------
 
-This release is for CouchDB 0.8.0.
-
-
-HTTP-3001.0.4
--------------
-
-The HTTP-3001.0.4 library suffers from a memory leak.  It doesn't close sockets,
-so after opening and closing many connections, your application will have "too
-many open files."
-
-This bug can affect any long-running application that uses the CouchDB library.
-Until this library is updated, you will have to patch it yourself.   Potential
-fixes were discussed in this thread on Haskell Cafe:
-
-http://www.haskell.org/pipermail/haskell-cafe/2008-August/046334.html
-
+This release is for CouchDB 0.8.1.

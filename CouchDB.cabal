@@ -19,8 +19,8 @@ Library
   Hs-Source-Dirs:
     src
   Build-Depends:
-    base, mtl, containers, network>=2.2.0.0, HTTP, json>=0.3.3,
-    hslogger>=1.0.5
+    base >= 3 && < 4, mtl, containers, network>=2.2.0.0, HTTP>=3001.1.3, 
+    json>=0.3.3, hslogger>=1.0.5
   ghc-options:
     -fwarn-incomplete-patterns
   Extensions:     
