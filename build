@@ -6,8 +6,8 @@ if [ `hostname` = "wanderlust.local" ]; then
   ./Setup.lhs build && \
   ./Setup.lhs haddock && \
   ./Setup.lhs install
-elif [ `hostname -d` = "cs.brown.edu" ]; then
-  echo "Building on cs.brown.edu ..."
+elif [ `whoami` = "arjun" ] && [ `hostname -d` = "cs.brown.edu" ]; then
+  echo "Building on cs.brown.edu and installing to /pro/plt/ghc/6.8.3 ..."
   ./Setup.lhs configure --prefix=/pro/plt/ghc/6.8.3 && \
   ./Setup.lhs build && \
   ./Setup.lhs haddock && \

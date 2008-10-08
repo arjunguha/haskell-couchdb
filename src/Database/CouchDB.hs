@@ -36,9 +36,10 @@ import System.Log.Logger (errorM)
 import Database.CouchDB.HTTP
 import Control.Monad
 import Control.Monad.Trans (liftIO)
-import Data.Maybe (fromJust,mapMaybe)
+import Data.Maybe (fromJust,mapMaybe,maybeToList)
 import Text.JSON
 import Data.List (elem)
+import Data.Maybe (mapMaybe)
 
 import Database.CouchDB.Unsafe (CouchView (..))
 import qualified Data.List as L
@@ -96,6 +97,22 @@ instance JSON Doc where
   readJSON _ = fail "readJSON: not a valid document name"
 
   showJSON (Doc s) = showJSON s
+
+instance Read Doc where
+  readsPrec _ str = maybeToList (parseFirst str) where
+    parseFirst "" = Nothing
+    parseFirst (ch:rest) 
+      | isFirstDocChar ch =
+          let (chs',rest') = parseRest rest
+            in Just (Doc $ toJSString $ ch:chs',rest)
+      | otherwise = Nothing
+    parseRest "" = ("","")
+    parseRest (ch:rest) 
+      | isDocChar ch =
+          let (chs',rest') = parseRest rest
+            in (ch:chs',rest')
+      | otherwise =
+          ("",ch:rest)
 
 -- |Returns a safe document name.  Signals an error if the name is
 -- invalid.
