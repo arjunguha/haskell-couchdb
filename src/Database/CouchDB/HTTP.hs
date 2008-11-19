@@ -13,7 +13,6 @@ module Database.CouchDB.HTTP
 
 import Data.IORef
 import Control.Concurrent
-import System.Log.Logger (errorM,debugM,infoM)
 import Network.TCP
 import Network.Stream
 import Network.HTTP
@@ -46,8 +45,7 @@ instance Monad CouchMonad where
     m' conn'
 
   fail msg = CouchMonad $ \conn -> do
-    errorM "couchdb" msg
-    fail "internal error"   
+    fail $ "internal error: " ++ msg   
 
 instance MonadIO CouchMonad where
 
@@ -94,17 +92,12 @@ request path query method headers body = do
   let allHeaders = (makeHeaders (length body)) ++ headers 
   conn <- getConn
   let req = Request url method allHeaders body
-  liftIO $ debugM "couchdb.http" $ "Starting " ++ show req
   let retry 0 = do
-        liftIO $ errorM "couchdb.http" $ "request failed: " ++ show req
-        fail "server error"
+        fail $ "server error: " ++ show req
       retry n = do
         response <- liftIO $ sendHTTP conn req
         case response of
           Left err -> do
-            liftIO $ infoM "couchdb.http" $ "request failed; " ++ show n ++
-              " more tries left.  Error code:  " ++ show err ++ ", request: " ++
-              show req
             reopenConnection
             retry (n-1)
           Right val -> return val

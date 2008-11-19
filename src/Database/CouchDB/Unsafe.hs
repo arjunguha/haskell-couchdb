@@ -23,14 +23,16 @@ module Database.CouchDB.Unsafe
   , queryViewKeys
   ) where
 
-import System.Log.Logger (errorM)
 import Database.CouchDB.HTTP
 import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust,mapMaybe)
 import Text.JSON
-
 import qualified Data.List as L
+
+assertJSObject :: JSValue -> CouchMonad JSValue
+assertJSObject v@(JSObject _) = return v
+assertJSObject o = fail $ "expected a JSON object; received: " ++ encode o
 
 couchResponse :: String -> [(String,JSValue)]
 couchResponse respBody = case decode respBody of
@@ -63,8 +65,8 @@ newNamedDoc :: (JSON a)
             -- ^Returns 'Left' on a conflict.  Returns 'Right' with the
             -- revision number on success.
 newNamedDoc dbName docName body = do
-  r <- request (dbName ++ "/" ++ docName) [] PUT [] 
-               (encode $ showJSON body)
+  obj <- assertJSObject (showJSON body)
+  r <- request (dbName ++ "/" ++ docName) [] PUT [] (encode obj)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)
@@ -128,7 +130,8 @@ newDoc :: (JSON a)
       -> a       -- ^document body
       -> CouchMonad (JSString,JSString) -- ^ id and rev of new document
 newDoc db doc = do
-  r <- request db [] POST [] (encode $ showJSON doc)
+  obj <- assertJSObject (showJSON doc)
+  r <- request db [] POST [] (encode obj)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)

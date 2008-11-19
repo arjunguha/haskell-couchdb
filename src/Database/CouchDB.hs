@@ -32,7 +32,6 @@ module Database.CouchDB
   , queryViewKeys
   ) where
 
-import System.Log.Logger (errorM)
 import Database.CouchDB.HTTP
 import Control.Monad
 import Control.Monad.Trans (liftIO)
