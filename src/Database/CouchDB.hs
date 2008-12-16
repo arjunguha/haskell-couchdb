@@ -205,7 +205,7 @@ getDocPrim db doc = do
 getAndUpdateDoc :: (JSON a)
                 => DB -- ^database
                 -> Doc -- ^document name
-                -> (a -> a) -- ^update function
+                -> (a -> IO a) -- ^update function
                 -> CouchMonad (Maybe Rev) -- ^If the update succeeds,
                                           -- return the revision number
                                           -- of the result.

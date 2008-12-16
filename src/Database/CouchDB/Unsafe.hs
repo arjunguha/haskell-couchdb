@@ -179,7 +179,7 @@ getDocPrim db doc = do
 getAndUpdateDoc :: (JSON a)
                 => String -- ^database
                 -> String -- ^document name
-                -> (a -> a) -- ^update function
+                -> (a -> IO a) -- ^update function
                 -> CouchMonad (Maybe String) -- ^If the update succeeds,
                                              -- return the revision number
                                              -- of the result.
@@ -187,7 +187,8 @@ getAndUpdateDoc db docId fn = do
   r <- getDoc db docId
   case r of
     Just (id,rev,val) -> do
-      r <- updateDoc db (id,rev) (fn val)
+      val' <- liftIO (fn val)
+      r <- updateDoc db (id,rev) val'
       case r of
         Just (id,rev) -> return (Just $ fromJSString rev)
         Nothing -> return Nothing
