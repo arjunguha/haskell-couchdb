@@ -14,7 +14,6 @@ module Database.CouchDB.HTTP
 import Data.IORef
 import Control.Concurrent
 import Network.TCP
-import Network.Stream
 import Network.HTTP
 import Network.URI
 import Control.Exception (finally)
@@ -23,7 +22,7 @@ import Control.Monad.Trans (MonadIO (..))
 -- |Describes a connection to a CouchDB database.  This type is
 -- encapsulated by 'CouchMonad'.
 data CouchConn = CouchConn 
-  { ccConn :: IORef Connection 
+  { ccConn :: IORef (HandleStream String) 
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
@@ -60,7 +59,7 @@ makeURL path query = CouchMonad $ \conn -> do
                         }
          ,conn )
 
-getConn :: CouchMonad Connection
+getConn :: CouchMonad (HandleStream String)
 getConn = CouchMonad $ \conn -> do
   r <- readIORef (ccConn conn)
   return (r,conn)
@@ -68,7 +67,7 @@ getConn = CouchMonad $ \conn -> do
 reopenConnection :: CouchMonad ()
 reopenConnection = CouchMonad $ \conn -> do
   c <- liftIO $ readIORef (ccConn conn) >>= close
-  connection <- liftIO $ openTCPPort (ccHostname conn) (ccPort conn)
+  connection <- liftIO $ openTCPConnection (ccHostname conn) (ccPort conn)
   writeIORef (ccConn conn) connection
   return ((), conn)
 
@@ -86,7 +85,7 @@ request :: String -- ^path of the request
        -> RequestMethod 
        -> [Header] 
        -> String -- ^body of the request
-       -> CouchMonad Response
+       -> CouchMonad (Response String)
 request path query method headers body = do
   url <- makeURL path query
   let allHeaders = (makeHeaders (length body)) ++ headers 
@@ -111,7 +110,7 @@ runCouchDB :: String -- ^hostname
 runCouchDB hostname port (CouchMonad m) = do
   let uriAuth = URIAuth "" hostname (':':(show port))
   let baseURI = URI "http:" (Just uriAuth) "" "" ""
-  c <- openTCPPort hostname port
+  c <- openTCPConnection hostname port
   conn <- newIORef c
   (a,_) <- m (CouchConn conn baseURI hostname port)
            `finally` (do c <- readIORef conn

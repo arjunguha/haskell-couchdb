@@ -17,7 +17,7 @@ jsonString (JSString s) = return (fromJSString s)
 jsonString _ = fail "expected a string"
 
 jsonInt :: (Integral n) => JSValue -> Result n
-jsonInt (JSRational r) = case (numerator r, denominator r) of
+jsonInt (JSRational _ r) = case (numerator r, denominator r) of
   (n,1) -> return (fromIntegral n)
   otherwise -> fail "expected an integer; got a rational"
 jsonInt _ = fail "expected an integer"
