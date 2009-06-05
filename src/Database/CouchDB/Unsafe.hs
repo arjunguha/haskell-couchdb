@@ -271,7 +271,7 @@ queryView :: (JSON a)
           -> CouchMonad [(JSString, a)]
 queryView db viewSet view args = do
   let args' = map (\(k,v) -> (k,encode v)) args
-  let url' = concat [db,"/_view/",viewSet,"/",view]
+  let url' = concat [db, viewSet, "/_view/", view]
   r <- request url' args' GET [] ""
   case rspCode r of
     (2,0,0) -> do
@@ -289,7 +289,7 @@ queryViewKeys :: String  -- ^database
             -> CouchMonad [String]
 queryViewKeys db viewSet view args = do
   let args' = map (\(k,v) -> (k,encode v)) args
-  let url' = concat [db,"/_view/",viewSet,"/",view]
+  let url' = concat [db, viewSet, "/_view/", view]
   r <- request url' args' GET [] ""
   case rspCode r of
     (2,0,0) -> do
