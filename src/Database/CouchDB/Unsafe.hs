@@ -12,6 +12,7 @@ module Database.CouchDB.Unsafe
   , deleteDoc
   , forceDeleteDoc
   , getDocPrim
+  , getDocRaw
   , getDoc
   , getAndUpdateDoc
   , getAllDocIds
@@ -39,6 +40,7 @@ couchResponse respBody = case decode respBody of
   Error s -> error s
   Ok r -> fromJSObject r
 
+request' :: String -> RequestMethod -> CouchMonad (Response String)
 request' path method = request path [] method [] ""
 
 -- |Creates a new database.  Throws an exception if the database already
@@ -175,6 +177,19 @@ getDocPrim db doc = do
       return $ Just (id,rev,obj)
     (4,0,4) -> return Nothing -- doc does not exist
     code -> fail $ "getDocPrim: " ++ show code ++ " error"
+
+-- |Gets a document as a Maybe String.  Returns the raw result of what 
+-- couchdb returns.  Returns Nothing if the doc does not exist.
+getDocRaw :: String -> String -> CouchMonad (Maybe String)
+getDocRaw db doc = do
+  r <- request' (db ++ "/" ++ doc) GET
+  case rspCode r of
+    (2,0,0) -> do
+      return $ Just (rspBody r)
+    (4,0,4) -> return Nothing -- doc does not exist
+    code -> fail $ "getDocRaw: " ++ show code ++ " error"
+
+
 
 getAndUpdateDoc :: (JSON a)
                 => String -- ^database

@@ -14,6 +14,7 @@ module Database.CouchDB
   , Doc
   , Rev
   , doc
+  , rev
   , isDocString
   , newNamedDoc
   , newDoc
@@ -21,6 +22,7 @@ module Database.CouchDB
   , deleteDoc
   , forceDeleteDoc
   , getDocPrim
+  , getDocRaw
   , getDoc
   , getAndUpdateDoc
   , getAllDocIds
@@ -113,6 +115,10 @@ instance Read Doc where
       | otherwise =
           ("",ch:rest)
 
+-- |Returns a Rev
+rev :: String -> Rev
+rev = Rev . toJSString          
+
 -- |Returns a safe document name.  Signals an error if the name is
 -- invalid.
 doc :: String -> Doc
@@ -201,6 +207,9 @@ getDocPrim db doc = do
   case r of
     Nothing -> return Nothing
     Just (_,rev,obj) -> return $ Just (doc,Rev rev,obj)
+
+getDocRaw :: DB -> Doc -> CouchMonad (Maybe String)
+getDocRaw db doc =  U.getDocRaw (show db) (show doc)
 
 getAndUpdateDoc :: (JSON a)
                 => DB -- ^database
