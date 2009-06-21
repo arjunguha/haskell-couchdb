@@ -68,7 +68,7 @@ isDBChar ch = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
 isFirstDocChar = isDBChar
 
 isDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
-  || (ch >= '0' && ch <= '9') || ch `elem` "@._"
+  || (ch >= '0' && ch <= '9') || ch `elem` "-@._"
 
 isDBString :: String -> Bool
 isDBString [] =  False
