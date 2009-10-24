@@ -16,6 +16,7 @@ module Database.CouchDB.Unsafe
   , getDoc
   , getAndUpdateDoc
   , getAllDocIds
+  , getAllDocs
   -- * Views
   -- $views
   , CouchView (..)
@@ -37,7 +38,7 @@ assertJSObject o = fail $ "expected a JSON object; received: " ++ encode o
 
 couchResponse :: String -> [(String,JSValue)]
 couchResponse respBody = case decode respBody of
-  Error s -> error s
+  Error s -> error $ "couchResponse: s"
   Ok r -> fromJSObject r
 
 request' :: String -> RequestMethod -> CouchMonad (Response String)
@@ -276,6 +277,41 @@ toRow (JSObject objVal) = (key,value) where
      Nothing -> error $ "toRow: row does not have a value in " ++ show obj
 toRow val =
   error $ "toRow: expected row to be an object, received " ++ show val
+
+
+getAllDocs :: JSON a
+           => String -- ^databse
+           -> [(String, JSValue)] -- ^query parameters
+          -- |Returns a list of rows.  Each row is a key, value pair.
+          -> CouchMonad [(JSString, a)]
+getAllDocs db args = do
+  let args' = map (\(k,v) -> (k,encode v)) args
+  let url' = concat [db, "/_all_docs"]
+  r <- request url' args' GET [] ""
+  case rspCode r of
+    (2,0,0) -> do
+      let result = couchResponse (rspBody r)
+      let (JSArray rows) = fromJust $ lookup "rows" result
+      return $ map toRowDoc rows
+    otherwise -> error $ "getAllDocs: " ++ show r
+
+
+toRowDoc :: JSON a => JSValue -> (JSString,a)
+toRowDoc (JSObject objVal) = (key,value) where
+   obj = fromJSObject objVal
+   key = case lookup "id" obj of
+     Just (JSString s) -> s
+     Just v -> error $ "toRowDoc: expected id to be a string, got " ++ show v
+     Nothing -> error $ "toRowDoc: row does not have an id field in " 
+                        ++ show obj
+   value = case lookup "doc" obj of
+     Just v -> case readJSON v of
+       Ok v' -> v'
+       Error s -> error s
+     Nothing -> error $ "toRowDoc: row does not have a value in " ++ show obj
+toRowDoc val =
+  error $ "toRowDoc: expected row to be an object, received " ++ show val
+           
 
 queryView :: (JSON a)
           => String  -- ^database

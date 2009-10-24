@@ -24,6 +24,7 @@ module Database.CouchDB
   , getDocPrim
   , getDocRaw
   , getDoc
+  , getAllDocs
   , getAndUpdateDoc
   , getAllDocIds
   -- * Views
@@ -195,6 +196,17 @@ getDoc db doc = do
   case r of
     Nothing -> return Nothing
     Just (_,rev,val) -> return $ Just (doc,Rev rev,val)
+
+
+getAllDocs :: JSON a
+           => DB
+          -> [(String, JSValue)] -- ^query parameters
+          -> CouchMonad [(Doc, a)]
+getAllDocs db args = do
+  rows <- U.getAllDocs (show db) args
+  return $ map (\(doc,val) -> (Doc doc,val)) rows
+
+
 -- |Gets a document as a raw JSON value.  Returns the document id,
 -- revision and value as a 'JSObject'.  These fields are queried lazily,
 -- and may fail later if the response from the server is malformed.
