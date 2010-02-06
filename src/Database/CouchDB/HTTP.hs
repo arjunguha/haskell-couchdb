@@ -9,6 +9,10 @@ module Database.CouchDB.HTTP
   , Response (..)
   , runCouchDB
   , runCouchDB'
+  , CouchConn()
+  , createCouchConn
+  , runCouchDBWith
+  , closeCouchConn
   ) where
 
 import Data.IORef
@@ -120,3 +124,22 @@ runCouchDB hostname port (CouchMonad m) = do
 -- |Connects to the CouchDB server at localhost:5984.
 runCouchDB' :: CouchMonad a -> IO a
 runCouchDB' = runCouchDB "127.0.0.1" 5984
+
+-- |Run a CouchDB computation with an existing CouchDB connection.
+runCouchDBWith :: CouchConn -> CouchMonad a -> IO a
+runCouchDBWith conn (CouchMonad f) = fmap fst $ f conn
+
+-- |Create a CouchDB connection for use with runCouchDBWith.
+createCouchConn :: String -- ^hostname
+                -> Int    -- ^port
+                -> IO (CouchConn)
+createCouchConn hostname port = do
+  let uriAuth = URIAuth "" hostname (':':(show port))
+  let baseURI = URI "http:" (Just uriAuth) "" "" ""
+  c <- openTCPConnection hostname port
+  conn <- newIORef c
+  return (CouchConn conn baseURI hostname port)
+
+-- |Closes an open CouchDB connection
+closeCouchConn :: CouchConn -> IO ()
+closeCouchConn (CouchConn conn _ _ _) = readIORef conn >>= close

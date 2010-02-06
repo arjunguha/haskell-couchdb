@@ -4,6 +4,11 @@ module Database.CouchDB
     CouchMonad
   , runCouchDB
   , runCouchDB'
+   -- * Explicit Connections
+  , CouchConn()
+  , runCouchDBWith  
+  , createCouchConn
+  , closeCouchConn  
   -- * Databases
   , DB
   , db
