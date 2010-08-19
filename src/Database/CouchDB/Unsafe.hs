@@ -26,6 +26,7 @@ module Database.CouchDB.Unsafe
   ) where
 
 import Database.CouchDB.HTTP
+import Codec.Binary.UTF8.String (encodeString, decodeString)
 import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust,mapMaybe)
@@ -37,7 +38,7 @@ assertJSObject v@(JSObject _) = return v
 assertJSObject o = fail $ "expected a JSON object; received: " ++ encode o
 
 couchResponse :: String -> [(String,JSValue)]
-couchResponse respBody = case decode respBody of
+couchResponse respBody = case dec respBody of
   Error s -> error $ "couchResponse: s"
   Ok r -> fromJSObject r
 
@@ -69,7 +70,7 @@ newNamedDoc :: (JSON a)
             -- revision number on success.
 newNamedDoc dbName docName body = do
   obj <- assertJSObject (showJSON body)
-  r <- request (dbName ++ "/" ++ docName) [] PUT [] (encode obj)
+  r <- request (dbName ++ "/" ++ docName) [] PUT [] (enc obj)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)
@@ -93,7 +94,7 @@ updateDoc db (doc,rev) val = do
   let (JSObject obj) = showJSON val
   let doc' = fromJSString doc
   let obj' = ("_id",JSString doc):("_rev",JSString rev):(fromJSObject obj)
-  r <- request (db ++ "/" ++ doc') [] PUT [] (encode $ toJSObject obj')
+  r <- request (db ++ "/" ++ doc') [] PUT [] (enc $ toJSObject obj')
   case rspCode r of
     (2,0,1) ->  do
       let result = couchResponse (rspBody r)
@@ -134,7 +135,7 @@ newDoc :: (JSON a)
       -> CouchMonad (JSString,JSString) -- ^ id and rev of new document
 newDoc db doc = do
   obj <- assertJSObject (showJSON doc)
-  r <- request db [] POST [] (encode obj)
+  r <- request db [] POST [] (enc obj)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)
@@ -357,3 +358,9 @@ rowKey (JSObject obj) = do
     Just (JSString s) -> return (fromJSString s)
     v -> fail "expected id"
 rowKey v = fail "expected id"
+
+enc :: (JSON a) => a -> String
+enc = encodeString . encode
+
+dec :: (JSON a) => String -> Result a
+dec = decode . decodeString

@@ -1,5 +1,5 @@
 Name:           CouchDB
-Version:        0.10.1
+Version:        0.10.2
 Cabal-Version:	>= 1.2.4
 Copyright:      Copyright (c) 2008-2009 Arjun Guha and Brendan Hickey
 License:        BSD3
@@ -19,7 +19,7 @@ Library
   Hs-Source-Dirs:
     src
   Build-Depends:
-    base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3
+    base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && < 0.3.7
   ghc-options:
     -fwarn-incomplete-patterns
   Extensions:     
