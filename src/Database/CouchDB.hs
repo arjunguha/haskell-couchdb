@@ -67,18 +67,23 @@ instance JSON DB where
 
   showJSON (DB s) = showJSON s
 
+-- isDBChar ch = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') 
+--     || (ch >= '0' && ch <= '9')
 
-isDBChar ch = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') 
-    || (ch >= '0' && ch <= '9')
+isDBFirstChar ch = (ch >= 'a' && ch <= 'z') 
 
-isFirstDocChar = isDBChar
+isDBOtherChar ch = (ch >= 'a' && ch <= 'z') 
+    || (ch >= '0' && ch <= '9') || ch `elem` "_$()+-/"
+
+isFirstDocChar = isDBFirstChar
 
 isDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
   || (ch >= '0' && ch <= '9') || ch `elem` "-@._"
 
 isDBString :: String -> Bool
 isDBString [] =  False
-isDBString s = and (map isDBChar s)
+isDBString (first:[]) = isDBFirstChar first
+isDBString (first:rest) = isDBFirstChar first && and (map isDBOtherChar rest)
 
 -- |Returns a safe database name.  Signals an error if the name is
 -- invalid.
