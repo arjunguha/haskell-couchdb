@@ -67,15 +67,16 @@ instance JSON DB where
 
   showJSON (DB s) = showJSON s
 
--- isDBChar ch = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') 
---     || (ch >= '0' && ch <= '9')
-
 isDBFirstChar ch = (ch >= 'a' && ch <= 'z') 
 
 isDBOtherChar ch = (ch >= 'a' && ch <= 'z') 
     || (ch >= '0' && ch <= '9') || ch `elem` "_$()+-/"
 
-isFirstDocChar = isDBFirstChar
+-- Pretty much anything is accepted in document IDs, but avoid the
+-- initial '_' as it is reserved. It is likely possible to accept
+-- more, but this includes at least the auto-generated IDs.
+isFirstDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
+  || (ch >= '0' && ch <= '9') || ch `elem` "-@."
 
 isDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
   || (ch >= '0' && ch <= '9') || ch `elem` "-@._"
