@@ -286,7 +286,7 @@ getAllDocs :: JSON a
           -- |Returns a list of rows.  Each row is a key, value pair.
           -> CouchMonad [(JSString, a)]
 getAllDocs db args = do
-  let args' = map (\(k,v) -> (k,encode v)) args
+  let args' = map (\(k,v) -> (k,enc v)) args
   let url' = concat [db, "/_all_docs"]
   r <- request url' args' GET [] ""
   case rspCode r of
@@ -322,7 +322,7 @@ queryView :: (JSON a)
           -- |Returns a list of rows.  Each row is a key, value pair.
           -> CouchMonad [(JSString, a)]
 queryView db viewSet view args = do
-  let args' = map (\(k,v) -> (k,encode v)) args
+  let args' = map (\(k,v) -> (k,enc v)) args
   let url' = concat [db, "/_design/", viewSet, "/_view/", view]
   r <- request url' args' GET [] ""
   case rspCode r of
@@ -340,7 +340,7 @@ queryViewKeys :: String  -- ^database
             -> [(String, JSValue)] -- ^query parameters
             -> CouchMonad [String]
 queryViewKeys db viewSet view args = do
-  let args' = map (\(k,v) -> (k,encode v)) args
+  let args' = map (\(k,v) -> (k,enc v)) args
   let url' = concat [db, "/_design/", viewSet, "/_view/", view]
   r <- request url' args' GET [] ""
   case rspCode r of
