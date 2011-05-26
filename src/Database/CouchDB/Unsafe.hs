@@ -5,6 +5,7 @@ module Database.CouchDB.Unsafe
   -- * Databases
     createDB
   , dropDB
+  , getAllDBs
   -- * Documents
   , newNamedDoc
   , newDoc
@@ -60,6 +61,16 @@ dropDB name = do
     (2,0,0) -> return True
     (4,0,4) -> return False
     otherwise -> error (rspReason resp)
+
+getAllDBs :: CouchMonad [JSString]
+getAllDBs = do
+  response <- request' "_all_dbs" GET
+  case rspCode response of
+    (2,0,0) ->
+      case dec (rspBody response) of
+        Ok (JSArray dbs) -> return [db | JSString db <- dbs]
+        otherwise        -> error "Unexpected couch response"
+    otherwise -> error (show response)
 
 newNamedDoc :: (JSON a)
             => String -- ^database name
