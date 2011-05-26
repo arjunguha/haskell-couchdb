@@ -15,6 +15,7 @@ module Database.CouchDB
   , isDBString
   , createDB
   , dropDB
+  , getAllDBs
   -- * Documents
   , Doc
   , Rev
@@ -151,6 +152,10 @@ createDB = U.createDB
 
 dropDB :: String -> CouchMonad Bool -- ^False if the database does not exist
 dropDB = U.dropDB
+
+getAllDBs :: CouchMonad [DB]
+getAllDBs = U.getAllDBs
+  >>= \dbs -> return [db $ fromJSString s | s <- dbs]
 
 newNamedDoc :: (JSON a)
             => DB -- ^database name
