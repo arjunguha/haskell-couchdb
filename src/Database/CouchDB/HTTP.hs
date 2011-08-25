@@ -2,7 +2,7 @@
 -- CouchDB enjoys closing the connection if there is an error (document
 -- not found, etc.)  In such cases, 'CouchMonad' will automatically
 -- reestablish the connection.
-module Database.CouchDB.HTTP 
+module Database.CouchDB.HTTP
   ( request
   , RequestMethod (..)
   , CouchMonad
@@ -15,6 +15,7 @@ module Database.CouchDB.HTTP
   , closeCouchConn
   ) where
 
+import Data.Char
 import Data.IORef
 import Control.Concurrent
 import Network.TCP
@@ -22,11 +23,13 @@ import Network.HTTP
 import Network.URI
 import Control.Exception (finally)
 import Control.Monad.Trans (MonadIO (..))
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.UTF8 as U
 
 -- |Describes a connection to a CouchDB database.  This type is
 -- encapsulated by 'CouchMonad'.
-data CouchConn = CouchConn 
-  { ccConn :: IORef (HandleStream String) 
+data CouchConn = CouchConn
+  { ccConn :: IORef (HandleStream B.ByteString)
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
@@ -48,7 +51,7 @@ instance Monad CouchMonad where
     m' conn'
 
   fail msg = CouchMonad $ \conn -> do
-    fail $ "internal error: " ++ msg   
+    fail $ "internal error: " ++ msg
 
 instance MonadIO CouchMonad where
 
@@ -58,12 +61,14 @@ makeURL :: String -- ^path
         -> [(String,String)]
         -> CouchMonad URI
 makeURL path query = CouchMonad $ \conn -> do
+  let toUTF8 = map (chr . fromIntegral) . B.unpack . U.fromString
+  let toUTF8' (p, q) = (toUTF8 p, toUTF8 q)
   return ( (ccURI conn) { uriPath = '/':path
-                        , uriQuery = '?':(urlEncodeVars query) 
+                        , uriQuery = '?':(urlEncodeVars $ map toUTF8' query)
                         }
          ,conn )
 
-getConn :: CouchMonad (HandleStream String)
+getConn :: CouchMonad (HandleStream B.ByteString)
 getConn = CouchMonad $ \conn -> do
   r <- readIORef (ccConn conn)
   return (r,conn)
@@ -86,15 +91,16 @@ makeHeaders bodyLen =
 -- exception.
 request :: String -- ^path of the request
        -> [(String,String)] -- ^dictionary of GET parameters
-       -> RequestMethod 
-       -> [Header] 
+       -> RequestMethod
+       -> [Header]
        -> String -- ^body of the request
        -> CouchMonad (Response String)
 request path query method headers body = do
   url <- makeURL path query
-  let allHeaders = (makeHeaders (length body)) ++ headers 
+  let ubody = U.fromString body
+  let allHeaders = (makeHeaders (B.length ubody)) ++ headers
   conn <- getConn
-  let req = Request url method allHeaders body
+  let req = Request url method allHeaders ubody
   let retry 0 = do
         fail $ "server error: " ++ show req
       retry n = do
@@ -103,13 +109,13 @@ request path query method headers body = do
           Left err -> do
             reopenConnection
             retry (n-1)
-          Right val -> return val
+          Right val -> return val { rspBody = U.toString $ rspBody val }
   retry 2
 
 
 runCouchDB :: String -- ^hostname
            -> Int -- ^port
-           -> CouchMonad a 
+           -> CouchMonad a
            -> IO a
 runCouchDB hostname port (CouchMonad m) = do
   let uriAuth = URIAuth "" hostname (':':(show port))
