@@ -10,6 +10,7 @@ module Database.CouchDB.Unsafe
   , newNamedDoc
   , newDoc
   , updateDoc
+  , bulkUpdateDocs
   , deleteDoc
   , forceDeleteDoc
   , getDocPrim
@@ -111,6 +112,27 @@ updateDoc db (doc,rev) val = do
       let result = couchResponse (rspBody r)
       let (JSString rev) = fromJust $ lookup "rev" result
       return $ Just (doc,rev)
+    (4,0,9) ->  return Nothing
+    otherwise -> 
+      error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
+
+bulkUpdateDocs :: (JSON a)
+               => String -- ^database
+               -> [a] -- ^ all docs
+               -> CouchMonad (Maybe [Either JSString (JSString, JSString)]) -- ^ error or (id,rev)
+bulkUpdateDocs db docs = do
+  let obj = [("docs", docs)]
+  r <- request (db ++ "/_bulk_docs") [] POST [] (enc $ toJSObject obj)
+  case rspCode r of
+    (2,0,1) ->  do
+      let Ok results = dec (rspBody r)
+      return $ Just $
+             map (\result ->
+                 case (lookup "id" result,
+                       lookup "rev" result) of
+                   (Just id, Just rev) -> Right (id, rev)
+                   _ -> Left $ fromJust $ lookup "error" result
+             ) results
     (4,0,9) ->  return Nothing
     otherwise -> 
       error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
