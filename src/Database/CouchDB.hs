@@ -25,6 +25,7 @@ module Database.CouchDB
   , newNamedDoc
   , newDoc
   , updateDoc
+  , bulkUpdateDocs
   , deleteDoc
   , forceDeleteDoc
   , getDocPrim
@@ -180,6 +181,21 @@ updateDoc db (doc,rev) val = do
     Nothing -> return Nothing
     Just (_,rev) -> return $ Just (doc,Rev rev)
 
+bulkUpdateDocs :: (JSON a)
+               => DB -- ^database
+               -> [a] -- ^ new docs
+               -> CouchMonad (Maybe [Either String (Doc, Rev)])
+bulkUpdateDocs db docs = do
+  r <- U.bulkUpdateDocs (show db) docs
+  case r of
+    Nothing -> return Nothing
+    Just es -> return $
+               Just $
+               map (\e ->
+                     case e of
+                       Left err -> Left $ fromJSString err
+                       Right (doc, rev) -> Right (Doc doc, Rev rev)
+                   ) es
 
 -- |Delete a doc by document identifier (revision number not needed).  This
 -- operation first retreives the document to get its revision number.  It fails
