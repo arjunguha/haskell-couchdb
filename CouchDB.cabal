@@ -4,7 +4,7 @@ Cabal-Version:	>= 1.2.4
 Copyright:      Copyright (c) 2008-2009 Arjun Guha and Brendan Hickey
 License:        BSD3
 License-file:   LICENSE
-Author:         Arjun Guha, Brendan Hickey
+Author:         Arjun Guha, Brendan Hickey, Stephan Maka
 Maintainer:     Arjun Guha <arjun@cs.brown.edu>
 Homepage:       http://github.com/arjunguha/haskell-couchdb/
 Stability:      provisional
