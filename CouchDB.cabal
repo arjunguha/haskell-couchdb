@@ -14,7 +14,7 @@ Synopsis:       CouchDB interface
 Extra-Source-Files: README
 Description:
 
- 
+
 Library
   Hs-Source-Dirs:
     src
@@ -22,7 +22,7 @@ Library
     base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7
   ghc-options:
     -fwarn-incomplete-patterns
-  Extensions:     
+  Extensions:
   Exposed-Modules:
     Database.CouchDB Database.CouchDB.JSON
   Other-Modules:

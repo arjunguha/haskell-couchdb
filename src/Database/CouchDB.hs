@@ -1,14 +1,14 @@
 -- |Interface to CouchDB.
-module Database.CouchDB 
+module Database.CouchDB
   ( -- * Initialization
     CouchMonad
   , runCouchDB
   , runCouchDB'
    -- * Explicit Connections
   , CouchConn()
-  , runCouchDBWith  
+  , runCouchDBWith
   , createCouchConn
-  , closeCouchConn  
+  , closeCouchConn
   -- * Databases
   , DB
   , db
@@ -69,18 +69,18 @@ instance JSON DB where
 
   showJSON (DB s) = showJSON s
 
-isDBFirstChar ch = (ch >= 'a' && ch <= 'z') 
+isDBFirstChar ch = (ch >= 'a' && ch <= 'z')
 
-isDBOtherChar ch = (ch >= 'a' && ch <= 'z') 
+isDBOtherChar ch = (ch >= 'a' && ch <= 'z')
     || (ch >= '0' && ch <= '9') || ch `elem` "_$()+-/"
 
 -- Pretty much anything is accepted in document IDs, but avoid the
 -- initial '_' as it is reserved. It is likely possible to accept
 -- more, but this includes at least the auto-generated IDs.
-isFirstDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
+isFirstDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z')
   || (ch >= '0' && ch <= '9') || ch `elem` "-@."
 
-isDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z') 
+isDocChar ch = (ch >= 'A' && ch <='Z') || (ch >= 'a' && ch <= 'z')
   || (ch >= '0' && ch <= '9') || ch `elem` "-@._"
 
 isDBString :: String -> Bool
@@ -116,13 +116,13 @@ instance JSON Doc where
 instance Read Doc where
   readsPrec _ str = maybeToList (parseFirst str) where
     parseFirst "" = Nothing
-    parseFirst (ch:rest) 
+    parseFirst (ch:rest)
       | isFirstDocChar ch =
           let (chs',rest') = parseRest rest
             in Just (Doc $ toJSString $ ch:chs',rest)
       | otherwise = Nothing
     parseRest "" = ("","")
-    parseRest (ch:rest) 
+    parseRest (ch:rest)
       | isDocChar ch =
           let (chs',rest') = parseRest rest
             in (ch:chs',rest')
@@ -131,7 +131,7 @@ instance Read Doc where
 
 -- |Returns a Rev
 rev :: String -> Rev
-rev = Rev . toJSString          
+rev = Rev . toJSString
 
 -- |Returns a safe document name.  Signals an error if the name is
 -- invalid.
@@ -147,7 +147,7 @@ isDocString (first:rest) = isFirstDocChar first && and (map isDocChar rest)
 
 
 -- |Creates a new database.  Throws an exception if the database already
--- exists. 
+-- exists.
 createDB :: String -> CouchMonad ()
 createDB = U.createDB
 
@@ -174,7 +174,7 @@ updateDoc :: (JSON a)
           => DB -- ^database
           -> (Doc,Rev) -- ^document and revision
           -> a -- ^ new value
-          -> CouchMonad (Maybe (Doc,Rev)) 
+          -> CouchMonad (Maybe (Doc,Rev))
 updateDoc db (doc,rev) val = do
   r <- U.updateDoc (show db) (unDoc doc, unRev rev) val
   case r of
@@ -217,11 +217,11 @@ newDoc :: (JSON a)
 newDoc db body = do
   (doc,rev) <- U.newDoc (show db) body
   return (Doc doc,Rev rev)
-    
+
 getDoc :: (JSON a)
        => DB -- ^database name
        -> Doc -- ^document name
-       -> CouchMonad (Maybe (Doc,Rev,a)) -- ^'Nothing' if the 
+       -> CouchMonad (Maybe (Doc,Rev,a)) -- ^'Nothing' if the
                                          -- doc does not exist
 getDoc db doc = do
   r <- U.getDoc (show db) (show doc)

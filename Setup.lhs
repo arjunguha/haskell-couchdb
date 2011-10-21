@@ -8,6 +8,6 @@
 
 > tests _ _ _ _ = do
 >   setCurrentDirectory "src"
->   h <- runCommand "/usr/bin/env runhaskell Database.CouchDB.Tests" 
+>   h <- runCommand "/usr/bin/env runhaskell Database.CouchDB.Tests"
 >   waitForProcess h
 >   return ()
