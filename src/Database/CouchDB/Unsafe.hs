@@ -48,7 +48,7 @@ request' :: String -> RequestMethod -> CouchMonad (Response String)
 request' path method = request path [] method [] ""
 
 -- |Creates a new database.  Throws an exception if the database already
--- exists. 
+-- exists.
 createDB :: String -> CouchMonad ()
 createDB name = do
   resp <- request' name PUT
@@ -91,7 +91,7 @@ newNamedDoc dbName docName body = do
     (4,0,9) ->  do
       let result = couchResponse (rspBody r)
       let (JSObject errorObj) = fromJust $ lookup "error" result
-      let (JSString reason) = 
+      let (JSString reason) =
             fromJust $ lookup "reason" (fromJSObject errorObj)
       return $ Left (fromJSString reason)
     otherwise -> error (show r)
@@ -101,7 +101,7 @@ updateDoc :: (JSON a)
           => String -- ^database
           -> (JSString,JSString) -- ^document and revision
           -> a -- ^ new value
-          -> CouchMonad (Maybe (JSString,JSString)) 
+          -> CouchMonad (Maybe (JSString,JSString))
 updateDoc db (doc,rev) val = do
   let (JSObject obj) = showJSON val
   let doc' = fromJSString doc
@@ -113,7 +113,7 @@ updateDoc db (doc,rev) val = do
       let (JSString rev) = fromJust $ lookup "rev" result
       return $ Just (doc,rev)
     (4,0,9) ->  return Nothing
-    otherwise -> 
+    otherwise ->
       error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
 
 bulkUpdateDocs :: (JSON a)
@@ -134,7 +134,7 @@ bulkUpdateDocs db docs = do
                    _ -> Left $ fromJust $ lookup "error" result
              ) results
     (4,0,9) ->  return Nothing
-    otherwise -> 
+    otherwise ->
       error $ "updateDoc error.\n" ++ (show r) ++ rspBody r
 
 
@@ -153,14 +153,14 @@ forceDeleteDoc db doc = do
 deleteDoc :: String  -- ^database
           -> (JSString,JSString) -- ^document and revision
           -> CouchMonad Bool
-deleteDoc db (doc,rev) = do 
+deleteDoc db (doc,rev) = do
   r <- request (db ++ "/" ++ (fromJSString doc)) [("rev",fromJSString rev)]
          DELETE [] ""
   case rspCode r of
     (2,0,0) -> return True
     -- TODO: figure out which error codes are normal (delete conflicts)
     otherwise -> fail $ "deleteDoc failed: " ++ (show r)
-      
+
 
 newDoc :: (JSON a)
        => String -- ^database name
@@ -176,11 +176,11 @@ newDoc db doc = do
       let (JSString id) = fromJust $ lookup "id" result
       return (id,rev)
     otherwise -> error (show r)
-    
+
 getDoc :: (JSON a)
        => String -- ^database name
        -> String -- ^document name
-       -> CouchMonad (Maybe (JSString,JSString,a)) -- ^'Nothing' if the 
+       -> CouchMonad (Maybe (JSString,JSString,a)) -- ^'Nothing' if the
                                                    -- doc does not exist
 getDoc dbName docName = do
   r <- request' (dbName ++ "/" ++ docName) GET
@@ -213,7 +213,7 @@ getDocPrim db doc = do
     (4,0,4) -> return Nothing -- doc does not exist
     code -> fail $ "getDocPrim: " ++ show code ++ " error"
 
--- |Gets a document as a Maybe String.  Returns the raw result of what 
+-- |Gets a document as a Maybe String.  Returns the raw result of what
 -- couchdb returns.  Returns Nothing if the doc does not exist.
 getDocRaw :: String -> String -> CouchMonad (Maybe String)
 getDocRaw db doc = do
@@ -287,10 +287,10 @@ newView :: String -- ^database name
         -> [CouchView] -- ^views
         -> CouchMonad ()
 newView dbName viewName views = do
-  let body = toJSObject 
+  let body = toJSObject
         [("language", JSString $ toJSString "javascript"),
          ("views", JSObject $ toJSObject (map couchViewToJSON views))]
-  result <- newNamedDoc dbName ("_design/" ++ viewName) 
+  result <- newNamedDoc dbName ("_design/" ++ viewName)
              (JSObject body)
   case result of
     Right _ -> return ()
@@ -302,7 +302,7 @@ toRow (JSObject objVal) = (key,value) where
    key = case lookup "id" obj of
      Just (JSString s) -> s
      Just v -> error $ "toRow: expected id to be a string, got " ++ show v
-     Nothing -> error $ "toRow: row does not have an id field in " 
+     Nothing -> error $ "toRow: row does not have an id field in "
                         ++ show obj
    value = case lookup "value" obj of
      Just v -> case readJSON v of
@@ -336,7 +336,7 @@ toRowDoc (JSObject objVal) = (key,value) where
    key = case lookup "id" obj of
      Just (JSString s) -> s
      Just v -> error $ "toRowDoc: expected id to be a string, got " ++ show v
-     Nothing -> error $ "toRowDoc: row does not have an id field in " 
+     Nothing -> error $ "toRowDoc: row does not have an id field in "
                         ++ show obj
    value = case lookup "doc" obj of
      Just v -> case readJSON v of
@@ -345,7 +345,7 @@ toRowDoc (JSObject objVal) = (key,value) where
      Nothing -> error $ "toRowDoc: row does not have a value in " ++ show obj
 toRowDoc val =
   error $ "toRowDoc: expected row to be an object, received " ++ show val
-           
+
 
 queryView :: (JSON a)
           => String  -- ^database
