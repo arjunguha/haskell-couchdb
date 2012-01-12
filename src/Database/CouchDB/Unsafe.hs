@@ -31,7 +31,7 @@ import Database.CouchDB.HTTP
 import Codec.Binary.UTF8.String (encodeString, decodeString)
 import Control.Monad
 import Control.Monad.Trans (liftIO)
-import Data.Maybe (fromJust,mapMaybe)
+import Data.Maybe (fromJust, mapMaybe, isNothing)
 import Text.JSON
 import qualified Data.List as L
 
@@ -90,9 +90,9 @@ newNamedDoc dbName docName body = do
       return (Right rev)
     (4,0,9) ->  do
       let result = couchResponse (rspBody r)
-      let (JSObject errorObj) = fromJust $ lookup "error" result
-      let (JSString reason) = 
-            fromJust $ lookup "reason" (fromJSObject errorObj)
+      let errorObj (JSObject x) = fromJust . lookup "reason"$ fromJSObject x
+          errorObj x = x
+      let (JSString reason) = errorObj . fromJust $ lookup "error" result
       return $ Left (fromJSString reason)
     otherwise -> error (show r)
 
@@ -287,14 +287,23 @@ newView :: String -- ^database name
         -> [CouchView] -- ^views
         -> CouchMonad ()
 newView dbName viewName views = do
-  let body = toJSObject 
+  let content = map couchViewToJSON views
+      body = toJSObject 
         [("language", JSString $ toJSString "javascript"),
-         ("views", JSObject $ toJSObject (map couchViewToJSON views))]
-  result <- newNamedDoc dbName ("_design/" ++ viewName) 
+         ("views", JSObject $ toJSObject content)]
+      path = "_design/" ++ viewName
+  result <- newNamedDoc dbName path
              (JSObject body)
   case result of
     Right _ -> return ()
-    Left err -> error err
+    Left err -> do
+        let update x = return . toJSObject . map replace $ fromJSObject x
+            replace ("views", JSObject v) =
+                    ("views", JSObject . toJSObject . unite $ fromJSObject v)
+            replace x = x
+            unite x = L.nubBy (\(k1, _) (k2, _) -> k1 == k2) $ content ++ x
+        res <- getAndUpdateDoc dbName path update
+        when (isNothing res) (error "newView: creation of the view failed")
 
 toRow :: JSON a => JSValue -> (JSString,a)
 toRow (JSObject objVal) = (key,value) where
