@@ -9,8 +9,10 @@ module Database.CouchDB.HTTP
   , Response (..)
   , runCouchDB
   , runCouchDB'
+  , runCouchDBURI
   , CouchConn()
   , createCouchConn
+  , createCouchConnFromURI
   , runCouchDBWith
   , closeCouchConn
   ) where
@@ -20,8 +22,11 @@ import Control.Concurrent
 import Network.TCP
 import Network.HTTP
 import Network.URI
-import Control.Exception (finally)
+import Control.Exception (bracket)
 import Control.Monad.Trans (MonadIO (..))
+import Data.Maybe (fromJust)
+import Network.HTTP.Auth
+import Control.Monad (ap)
 
 -- |Describes a connection to a CouchDB database.  This type is
 -- encapsulated by 'CouchMonad'.
@@ -30,6 +35,7 @@ data CouchConn = CouchConn
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
+  , ccAuth :: Maybe Authority -- ^login credentials, if needed.
   }
 
 -- |A computation that interacts with a CouchDB database.  This monad
@@ -67,6 +73,9 @@ getConn :: CouchMonad (HandleStream String)
 getConn = CouchMonad $ \conn -> do
   r <- readIORef (ccConn conn)
   return (r,conn)
+  
+getConnAuth :: CouchMonad (Maybe Authority)
+getConnAuth = CouchMonad $ \conn -> return ((ccAuth conn),conn)
 
 reopenConnection :: CouchMonad ()
 reopenConnection = CouchMonad $ \conn -> do
@@ -94,7 +103,9 @@ request path query method headers body = do
   url <- makeURL path query
   let allHeaders = (makeHeaders (length body)) ++ headers 
   conn <- getConn
-  let req = Request url method allHeaders body
+  auth <- getConnAuth
+  let req' = Request url method allHeaders body
+  let req = maybe req' (fillAuth req') auth
   let retry 0 = do
         fail $ "server error: " ++ show req
       retry n = do
@@ -106,20 +117,26 @@ request path query method headers body = do
           Right val -> return val
   retry 2
 
+fillAuth :: Request a -> Authority -> Request a
+fillAuth req auth = req { rqHeaders = new : rqHeaders req }
+  where new = Header HdrAuthorization (withAuthority auth req)
+
+runCouchDBURI :: URI -- ^URI to connect
+              -> CouchMonad a
+              -> IO a
+runCouchDBURI uri act = bracket
+                        (createCouchConnFromURI uri)
+                        closeCouchConn
+                        (flip runCouchDBWith act)
 
 runCouchDB :: String -- ^hostname
            -> Int -- ^port
            -> CouchMonad a 
            -> IO a
-runCouchDB hostname port (CouchMonad m) = do
-  let uriAuth = URIAuth "" hostname (':':(show port))
-  let baseURI = URI "http:" (Just uriAuth) "" "" ""
-  c <- openTCPConnection hostname port
-  conn <- newIORef c
-  (a,_) <- m (CouchConn conn baseURI hostname port)
-           `finally` (do c <- readIORef conn
-                         close c)
-  return a
+runCouchDB hostname port act = bracket
+                               (createCouchConn hostname port)
+                               closeCouchConn
+                               (flip runCouchDBWith act)
 
 -- |Connects to the CouchDB server at localhost:5984.
 runCouchDB' :: CouchMonad a -> IO a
@@ -133,13 +150,37 @@ runCouchDBWith conn (CouchMonad f) = fmap fst $ f conn
 createCouchConn :: String -- ^hostname
                 -> Int    -- ^port
                 -> IO (CouchConn)
-createCouchConn hostname port = do
+createCouchConn hostname port = createCouchAuthConn hostname port Nothing
+
+-- |Create a CouchDB connection with password authentication for use
+-- with runCouchDBWith.
+createCouchAuthConn :: String          -- ^hostname
+                    -> Int             -- ^port
+                    -> Maybe Authority -- ^Login credentials
+                    -> IO (CouchConn)
+createCouchAuthConn hostname port auth = do
   let uriAuth = URIAuth "" hostname (':':(show port))
   let baseURI = URI "http:" (Just uriAuth) "" "" ""
   c <- openTCPConnection hostname port
   conn <- newIORef c
-  return (CouchConn conn baseURI hostname port)
+  return (CouchConn conn baseURI hostname port auth)
+
+-- |Create a CouchDB from an URI connection for use with runCouchDBWith.
+createCouchConnFromURI :: URI -- ^URI with possible login credentials
+                       -> IO (CouchConn)
+createCouchConnFromURI baseURI = do
+  createCouchAuthConn hostname port auth
+  where
+    ua = fromJust $ uriAuthority baseURI
+    hostname = uriRegName ua
+    port = uriAuthPort (Just baseURI) ua
+    ua2 = (fromJust.parseURIAuthority.uriToAuthorityString) baseURI
+    auth = (Just AuthBasic)
+           `ap` (return "")
+           `ap` (user ua2)
+           `ap` (password ua2)
+           `ap` (return baseURI)
 
 -- |Closes an open CouchDB connection
 closeCouchConn :: CouchConn -> IO ()
-closeCouchConn (CouchConn conn _ _ _) = readIORef conn >>= close
+closeCouchConn (CouchConn conn _ _ _ _ ) = readIORef conn >>= close
