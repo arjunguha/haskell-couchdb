@@ -95,6 +95,11 @@ testNamedDocs = testWithDB "add named documents" $ \mydb -> do
   Just (_,_,v2) <- getDoc mydb (doc "alex") 
   return $ (v1 == people !! 0) && (v2 == people !! 1)
 
+testUTF8 = testWithDB "test UTF8 characters" $ \db -> do
+  newNamedDoc db (doc "d0") (Age "äöüß" 900)
+  Just (_, _, d) <- getDoc db (doc "d0")
+  return (ageName d == "äöüß")
+
   
-allTests = TestList [ testCreate, testNamedDocs ]
+allTests = TestList [ testCreate, testNamedDocs, testUTF8 ]
 
