@@ -9,15 +9,25 @@ Maintainer:     Arjun Guha <arjun@cs.brown.edu>
 Homepage:       http://github.com/arjunguha/haskell-couchdb/
 Stability:      provisional
 Category:       Database
-Build-Type:     Custom
+Build-Type:     Simple
 Synopsis:       CouchDB interface
 Extra-Source-Files: README
+
 Description:
 
+Test-Suite test-couchdb
+  Hs-Source-Dirs: src
+  Type: exitcode-stdio-1.0
+  Main-Is: Tests.hs
+  Build-Depends:
+    base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, HUnit
+  Extensions:
+    FlexibleInstances
+  ghc-options:
+    -fwarn-incomplete-patterns
  
 Library
-  Hs-Source-Dirs:
-    src
+  Hs-Source-Dirs: src
   Build-Depends:
     base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7
   ghc-options:

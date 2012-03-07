@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -XFlexibleInstances #-}
-module Database.CouchDB.Tests ( main, allTests) where
+module Main where
 
 import Control.Monad.Trans (liftIO)
 import Control.Exception (finally)
@@ -7,6 +6,8 @@ import Test.HUnit
 import Database.CouchDB
 import Database.CouchDB.JSON
 import Text.JSON
+import System.Exit
+import Control.Monad
 
 -- ----------------------------------------------------------------------------
 -- Helper functions
@@ -45,11 +46,12 @@ testWithDB testDescription testCase =
     let teardown = runCouchDB' (dropDB "haskellcouchdbtest") 
     let failure _ = assertFailure (testDescription ++ "; exception signalled")
     action `catch` failure `finally` teardown
-    
-
+ 
 main = do
   putStrLn "Running CouchDB test suite..."
-  runTestTT allTests
+  results <- runTestTT allTests
+  when (errors results > 0 || failures results > 0)
+    exitFailure
   putStrLn "Testing complete."
   return ()
 
