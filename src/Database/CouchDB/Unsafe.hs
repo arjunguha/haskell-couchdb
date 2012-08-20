@@ -28,7 +28,6 @@ module Database.CouchDB.Unsafe
   ) where
 
 import Database.CouchDB.HTTP
-import Codec.Binary.UTF8.String (encodeString, decodeString)
 import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Data.Maybe (fromJust, mapMaybe, isNothing)
@@ -40,7 +39,7 @@ assertJSObject v@(JSObject _) = return v
 assertJSObject o = fail $ "expected a JSON object; received: " ++ encode o
 
 couchResponse :: String -> [(String,JSValue)]
-couchResponse respBody = case dec respBody of
+couchResponse respBody = case decode respBody of
   Error s -> error $ "couchResponse: s"
   Ok r -> fromJSObject r
 
@@ -68,7 +67,7 @@ getAllDBs = do
   response <- request' "_all_dbs" GET
   case rspCode response of
     (2,0,0) ->
-      case dec (rspBody response) of
+      case decode (rspBody response) of
         Ok (JSArray dbs) -> return [db | JSString db <- dbs]
         otherwise        -> error "Unexpected couch response"
     otherwise -> error (show response)
@@ -82,7 +81,7 @@ newNamedDoc :: (JSON a)
             -- revision number on success.
 newNamedDoc dbName docName body = do
   obj <- assertJSObject (showJSON body)
-  r <- request (dbName ++ "/" ++ docName) [] PUT [] (enc obj)
+  r <- request (dbName ++ "/" ++ docName) [] PUT [] (encode obj)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)
@@ -106,7 +105,7 @@ updateDoc db (doc,rev) val = do
   let (JSObject obj) = showJSON val
   let doc' = fromJSString doc
   let obj' = ("_id",JSString doc):("_rev",JSString rev):(fromJSObject obj)
-  r <- request (db ++ "/" ++ doc') [] PUT [] (enc $ toJSObject obj')
+  r <- request (db ++ "/" ++ doc') [] PUT [] (encode $ toJSObject obj')
   case rspCode r of
     (2,0,1) ->  do
       let result = couchResponse (rspBody r)
@@ -122,10 +121,10 @@ bulkUpdateDocs :: (JSON a)
                -> CouchMonad (Maybe [Either JSString (JSString, JSString)]) -- ^ error or (id,rev)
 bulkUpdateDocs db docs = do
   let obj = [("docs", docs)]
-  r <- request (db ++ "/_bulk_docs") [] POST [] (enc $ toJSObject obj)
+  r <- request (db ++ "/_bulk_docs") [] POST [] (encode $ toJSObject obj)
   case rspCode r of
     (2,0,1) ->  do
-      let Ok results = dec (rspBody r)
+      let Ok results = decode (rspBody r)
       return $ Just $
              map (\result ->
                  case (lookup "id" result,
@@ -168,7 +167,7 @@ newDoc :: (JSON a)
       -> CouchMonad (JSString,JSString) -- ^ id and rev of new document
 newDoc db doc = do
   obj <- assertJSObject (showJSON doc)
-  r <- request db [] POST [] (enc obj)
+  r <- request db [] POST [] (encode obj)
   case rspCode r of
     (2,0,1) -> do
       let result = couchResponse (rspBody r)
@@ -400,9 +399,3 @@ rowKey (JSObject obj) = do
     Just (JSString s) -> return (fromJSString s)
     v -> fail "expected id"
 rowKey v = fail "expected id"
-
-enc :: (JSON a) => a -> String
-enc = encodeString . encode
-
-dec :: (JSON a) => String -> Result a
-dec = decode . decodeString
