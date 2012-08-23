@@ -25,13 +25,15 @@ import Network.URI
 import Control.Exception (bracket)
 import Control.Monad.Trans (MonadIO (..))
 import Data.Maybe (fromJust)
+import qualified Data.ByteString as BS (ByteString, length)
+import qualified Data.ByteString.UTF8 as UTF8 (fromString, toString)
 import Network.HTTP.Auth
 import Control.Monad (ap)
 
 -- |Describes a connection to a CouchDB database.  This type is
 -- encapsulated by 'CouchMonad'.
 data CouchConn = CouchConn 
-  { ccConn :: IORef (HandleStream String) 
+  { ccConn :: IORef (HandleStream BS.ByteString) 
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
@@ -69,7 +71,7 @@ makeURL path query = CouchMonad $ \conn -> do
                         }
          ,conn )
 
-getConn :: CouchMonad (HandleStream String)
+getConn :: CouchMonad (HandleStream BS.ByteString)
 getConn = CouchMonad $ \conn -> do
   r <- readIORef (ccConn conn)
   return (r,conn)
@@ -86,6 +88,7 @@ reopenConnection = CouchMonad $ \conn -> do
 
 makeHeaders bodyLen =
   [ Header HdrContentType "application/json"
+  , Header HdrContentEncoding "UTF-8"
   , Header HdrConnection "keep-alive"
   , Header HdrContentLength (show bodyLen)
   ]
@@ -100,11 +103,12 @@ request :: String -- ^path of the request
        -> String -- ^body of the request
        -> CouchMonad (Response String)
 request path query method headers body = do
+  let body' = UTF8.fromString body
   url <- makeURL path query
-  let allHeaders = (makeHeaders (length body)) ++ headers 
+  let allHeaders = (makeHeaders (BS.length body')) ++ headers 
   conn <- getConn
   auth <- getConnAuth
-  let req' = Request url method allHeaders body
+  let req' = Request url method allHeaders body'
   let req = maybe req' (fillAuth req') auth
   let retry 0 = do
         fail $ "server error: " ++ show req
@@ -114,8 +118,11 @@ request path query method headers body = do
           Left err -> do
             reopenConnection
             retry (n-1)
-          Right val -> return val
+          Right val -> return (unUTF8 val)
   retry 2
+  where
+    unUTF8 :: Response BS.ByteString -> Response String
+    unUTF8 (Response c r h b) = Response c r h (UTF8.toString b)
 
 fillAuth :: Request a -> Authority -> Request a
 fillAuth req auth = req { rqHeaders = new : rqHeaders req }
