@@ -1,7 +1,7 @@
 module Main where
 
 import Control.Monad.Trans (liftIO)
-import Control.Exception (finally)
+import Control.Exception (catch, finally, ErrorCall)
 import Test.HUnit
 import Database.CouchDB
 import Database.CouchDB.JSON
@@ -44,7 +44,8 @@ testWithDB testDescription testCase =
           result <- testCase (db "haskellcouchdbtest")
           liftIO $ assertBool testDescription result
     let teardown = runCouchDB' (dropDB "haskellcouchdbtest") 
-    let failure _ = assertFailure (testDescription ++ "; exception signalled")
+    let failure :: ErrorCall -> IO ()
+        failure _ = assertFailure (testDescription ++ "; exception signalled")
     action `catch` failure `finally` teardown
  
 main = do
