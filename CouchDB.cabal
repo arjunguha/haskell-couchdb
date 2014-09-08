@@ -1,11 +1,11 @@
 Name:           CouchDB
-Version:        1.2
+Version:        1.2.1
 Cabal-Version:	>= 1.8
 Copyright:      Copyright (c) 2008-2012.
 License:        BSD3
 License-file:   LICENSE
 Author:         see the AUTHORS file
-Maintainer:     
+Maintainer:
 Homepage:       http://github.com/arjunguha/haskell-couchdb/
 Stability:      provisional
 Category:       Database
@@ -25,14 +25,14 @@ Test-Suite test-couchdb
     FlexibleInstances
   ghc-options:
     -fwarn-incomplete-patterns
- 
+
 Library
   Hs-Source-Dirs: src
   Build-Depends:
-    base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, bytestring
+    base >= 4 && < 5, mtl, containers, network, network-uri, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, bytestring
   ghc-options:
     -fwarn-incomplete-patterns
-  Extensions:     
+  Extensions:
   Exposed-Modules:
     Database.CouchDB Database.CouchDB.JSON
   Other-Modules:
