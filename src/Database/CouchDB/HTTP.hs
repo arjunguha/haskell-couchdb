@@ -2,7 +2,7 @@
 -- CouchDB enjoys closing the connection if there is an error (document
 -- not found, etc.)  In such cases, 'CouchMonad' will automatically
 -- reestablish the connection.
-module Database.CouchDB.HTTP 
+module Database.CouchDB.HTTP
   ( request
   , RequestMethod (..)
   , CouchMonad
@@ -18,7 +18,9 @@ module Database.CouchDB.HTTP
   ) where
 
 import Data.IORef
+import Control.Applicative (Applicative(pure, (<*>)))
 import Control.Concurrent
+import Control.Monad (ap, liftM)
 import Network.TCP
 import Network.HTTP
 import Network.URI
@@ -32,8 +34,8 @@ import Control.Monad (ap)
 
 -- |Describes a connection to a CouchDB database.  This type is
 -- encapsulated by 'CouchMonad'.
-data CouchConn = CouchConn 
-  { ccConn :: IORef (HandleStream BS.ByteString) 
+data CouchConn = CouchConn
+  { ccConn :: IORef (HandleStream BS.ByteString)
   , ccURI :: URI
   , ccHostname :: String
   , ccPort :: Int
@@ -47,16 +49,21 @@ data CouchConn = CouchConn
 data CouchMonad a = CouchMonad (CouchConn -> IO (a,CouchConn))
 
 instance Monad CouchMonad where
-
   return a = CouchMonad $ \conn -> return (a,conn)
-
   (CouchMonad m) >>= k = CouchMonad $ \conn -> do
     (a,conn') <- m conn
     let (CouchMonad m') = k a
     m' conn'
 
   fail msg = CouchMonad $ \conn -> do
-    fail $ "internal error: " ++ msg   
+    fail $ "internal error: " ++ msg
+
+instance Functor CouchMonad where
+    fmap = liftM
+
+instance Applicative CouchMonad where
+    pure  = return
+    (<*>) = ap
 
 instance MonadIO CouchMonad where
 
@@ -67,7 +74,7 @@ makeURL :: String -- ^path
         -> CouchMonad URI
 makeURL path query = CouchMonad $ \conn -> do
   return ( (ccURI conn) { uriPath = '/':path
-                        , uriQuery = '?':(urlEncodeVars query) 
+                        , uriQuery = '?':(urlEncodeVars query)
                         }
          ,conn )
 
@@ -75,7 +82,7 @@ getConn :: CouchMonad (HandleStream BS.ByteString)
 getConn = CouchMonad $ \conn -> do
   r <- readIORef (ccConn conn)
   return (r,conn)
-  
+
 getConnAuth :: CouchMonad (Maybe Authority)
 getConnAuth = CouchMonad $ \conn -> return ((ccAuth conn),conn)
 
@@ -98,14 +105,14 @@ makeHeaders bodyLen =
 -- exception.
 request :: String -- ^path of the request
        -> [(String,String)] -- ^dictionary of GET parameters
-       -> RequestMethod 
-       -> [Header] 
+       -> RequestMethod
+       -> [Header]
        -> String -- ^body of the request
        -> CouchMonad (Response String)
 request path query method headers body = do
   let body' = UTF8.fromString body
   url <- makeURL path query
-  let allHeaders = (makeHeaders (BS.length body')) ++ headers 
+  let allHeaders = (makeHeaders (BS.length body')) ++ headers
   conn <- getConn
   auth <- getConnAuth
   let req' = Request url method allHeaders body'
@@ -138,7 +145,7 @@ runCouchDBURI uri act = bracket
 
 runCouchDB :: String -- ^hostname
            -> Int -- ^port
-           -> CouchMonad a 
+           -> CouchMonad a
            -> IO a
 runCouchDB hostname port act = bracket
                                (createCouchConn hostname port)
