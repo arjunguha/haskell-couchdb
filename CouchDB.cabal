@@ -1,5 +1,5 @@
 Name:           CouchDB
-Version:        1.2
+Version:        1.2.1
 Cabal-Version:	>= 1.8
 Copyright:      Copyright (c) 2008-2012.
 License:        BSD3
@@ -11,9 +11,10 @@ Stability:      provisional
 Category:       Database
 Build-Type:     Simple
 Synopsis:       CouchDB interface
-Extra-Source-Files: README LICENSE AUTHORS
+Extra-Source-Files: README LICENSE AUTHORS CHANGES
 
 Description:
+   An interface to CouchDB servers.
 
 flag network-uri
    description: Get Network.URI from the new network-uri package ? A compatibility flag, cabal will toggle it as needed.
