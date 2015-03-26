@@ -15,12 +15,20 @@ Extra-Source-Files: README LICENSE AUTHORS
 
 Description:
 
+flag network-uri
+   description: Get Network.URI from the new network-uri package ? A compatibility flag, cabal will toggle it as needed.
+   default: True
+
 Test-Suite test-couchdb
   Hs-Source-Dirs: src
   Type: exitcode-stdio-1.0
   Main-Is: Tests.hs
   Build-Depends:
-    base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, HUnit, bytestring
+    base >= 4 && < 5, mtl, containers, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, HUnit, bytestring
+  if flag(network-uri)
+    build-depends: network >= 2.6, network-uri >= 2.6
+  else
+    build-depends: network < 2.6, network-uri < 2.6
   Extensions:
     FlexibleInstances
   ghc-options:
@@ -29,7 +37,11 @@ Test-Suite test-couchdb
 Library
   Hs-Source-Dirs: src
   Build-Depends:
-    base >= 4 && < 5, mtl, containers, network, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, bytestring
+    base >= 4 && < 5, mtl, containers, network, network-uri, HTTP>=4000.0.4, json>=0.4.3, utf8-string >= 0.3.6 && <= 0.3.7, bytestring
+  if flag(network-uri)
+    build-depends: network >= 2.6, network-uri >= 2.6
+  else
+    build-depends: network < 2.6, network-uri < 2.6
   ghc-options:
     -fwarn-incomplete-patterns
   Extensions:     
