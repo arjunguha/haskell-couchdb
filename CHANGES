@@ -1,4 +1,5 @@
 1.2.1 (unreleased)
 
+* allow utf8-string 0.3.8+
 * add a compatibility flag to depend on network-uri >=2.6 when network >= 2.6,
   fixing compilation (#18)
