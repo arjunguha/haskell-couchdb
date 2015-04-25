@@ -28,6 +28,7 @@ import Data.Maybe (fromJust)
 import qualified Data.ByteString as BS (ByteString, length)
 import qualified Data.ByteString.UTF8 as UTF8 (fromString, toString)
 import Network.HTTP.Auth
+import Control.Applicative
 import Control.Monad (ap)
 
 -- |Describes a connection to a CouchDB database.  This type is
@@ -46,6 +47,8 @@ data CouchConn = CouchConn
 -- if it is closed.
 data CouchMonad a = CouchMonad (CouchConn -> IO (a,CouchConn))
 
+instance Applicative CouchMonad where
+instance Functor CouchMonad where
 instance Monad CouchMonad where
 
   return a = CouchMonad $ \conn -> return (a,conn)
