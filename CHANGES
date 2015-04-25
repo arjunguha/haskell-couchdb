@@ -1,5 +1,5 @@
-1.2.1 (unreleased)
+1.2.1 (2015/4/25)
 
+* GHC 7.10 compatibility
 * allow utf8-string 0.3.8+
-* add a compatibility flag to depend on network-uri >=2.6 when network >= 2.6,
-  fixing compilation (#18)
+* add a compatibility flag to fix compilation with network >= 2.6 (#18)
