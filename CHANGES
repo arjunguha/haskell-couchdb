@@ -1,0 +1,5 @@
+1.2.1 (2015/4/25)
+
+* GHC 7.10 compatibility
+* allow utf8-string 0.3.8+
+* fix compilation with network >= 2.6 (#18)
